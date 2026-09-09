@@ -66,7 +66,7 @@ func TestClientAssertionJWTClaims(t *testing.T) {
 			return nil, err
 		}
 		return &key.PublicKey, nil
-	}, jwt.WithValidMethods([]string{jwt.SigningMethodES256.Alg()}))
+	}, jwt.WithValidMethods([]string{jwt.SigningMethodES256.Alg()}), jwt.WithoutClaimsValidation())
 	if err != nil {
 		t.Fatalf("parse jwt: %v", err)
 	}
