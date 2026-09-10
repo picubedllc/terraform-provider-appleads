@@ -71,10 +71,12 @@ func TestClientAssertionJWTClaims(t *testing.T) {
 		t.Fatalf("parse jwt: %v", err)
 	}
 
-	if alg, _ := parsed.Header["alg"].(string); alg != "ES256" {
+	alg, ok := parsed.Header["alg"].(string)
+	if !ok || alg != "ES256" {
 		t.Errorf("alg = %v", parsed.Header["alg"])
 	}
-	if kid, _ := parsed.Header["kid"].(string); kid != "key-123" {
+	kid, ok := parsed.Header["kid"].(string)
+	if !ok || kid != "key-123" {
 		t.Errorf("kid = %v", parsed.Header["kid"])
 	}
 	claims, ok := parsed.Claims.(jwt.MapClaims)
@@ -90,10 +92,18 @@ func TestClientAssertionJWTClaims(t *testing.T) {
 	if claims["aud"] != client.OAuthAudience {
 		t.Errorf("aud = %v", claims["aud"])
 	}
-	if int64(claims["iat"].(float64)) != fixed.Unix() {
+	iat, ok := claims["iat"].(float64)
+	if !ok {
+		t.Fatalf("iat type = %T", claims["iat"])
+	}
+	if int64(iat) != fixed.Unix() {
 		t.Errorf("iat = %v", claims["iat"])
 	}
-	if int64(claims["exp"].(float64)) != fixed.Add(24*time.Hour).Unix() {
+	exp, ok := claims["exp"].(float64)
+	if !ok {
+		t.Fatalf("exp type = %T", claims["exp"])
+	}
+	if int64(exp) != fixed.Add(24*time.Hour).Unix() {
 		t.Errorf("exp = %v", claims["exp"])
 	}
 }
