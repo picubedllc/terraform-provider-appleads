@@ -180,9 +180,9 @@ type PageParams struct {
 
 // PageResult is a single page of items plus pagination metadata.
 type PageResult[T any] struct {
-	Data       []T
-	TotalCount int
-	StartIndex int
+	Data         []T
+	TotalCount   int
+	StartIndex   int
 	ItemsPerPage int
 }
 
