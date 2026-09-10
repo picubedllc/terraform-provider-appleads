@@ -3,6 +3,7 @@ module github.com/picubedllc/terraform-provider-appleads
 go 1.25.8
 
 require (
+	github.com/golang-jwt/jwt/v5 v5.2.2
 	github.com/hashicorp/terraform-plugin-framework v1.19.0
 	github.com/hashicorp/terraform-plugin-go v0.31.0
 )
