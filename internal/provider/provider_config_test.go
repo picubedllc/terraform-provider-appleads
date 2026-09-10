@@ -11,7 +11,7 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"os"
-	"regexp"
+	"strings"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-framework/provider"
@@ -67,7 +67,7 @@ func TestConfigure_MissingCredentials(t *testing.T) {
 	}
 	found := false
 	for _, d := range resp.Diagnostics {
-		if matched, _ := regexp.MatchString(`Missing Apple Ads credential`, d.Summary()); matched {
+		if strings.Contains(d.Summary(), "Missing Apple Ads credential") {
 			found = true
 			break
 		}
