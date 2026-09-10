@@ -1,3 +1,3 @@
-## 0.1.0 (Unreleased)
+## Unreleased
 
-FEATURES:
+Initial provider scaffold for `picubedllc/appleads`.
