@@ -29,7 +29,7 @@ func TestAccNegativeKeywordResource_CampaignAndAdGroup(t *testing.T) {
 		CheckDestroy:             testAccCheckNegativeKeywordDestroy,
 		Steps: []resource.TestStep{
 			{
-				Config: testAccProviderConfig(true) + testAccCampaignPausedConfig("parent", adamID) + testAccAdGroupPausedConfig("parent", "ag") + `
+				Config: testAccProviderConfig(true) + testAccCampaignPausedConfig("parent", adamID) + testAccAdGroupPausedConfig() + `
 resource "appleads_negative_keyword" "campaign" {
   campaign_id = appleads_campaign.parent.id
   text        = "tf acc free"
@@ -53,7 +53,7 @@ resource "appleads_negative_keyword" "adgroup" {
 				),
 			},
 			{
-				Config: testAccProviderConfig(true) + testAccCampaignPausedConfig("parent", adamID) + testAccAdGroupPausedConfig("parent", "ag") + `
+				Config: testAccProviderConfig(true) + testAccCampaignPausedConfig("parent", adamID) + testAccAdGroupPausedConfig() + `
 resource "appleads_negative_keyword" "campaign" {
   campaign_id = appleads_campaign.parent.id
   text        = "tf acc free"
@@ -149,20 +149,21 @@ func testAccCheckNegativeKeywordDestroy(s *terraform.State) error {
 			return err
 		}
 		var got *client.NegativeKeyword
+		var getErr error
 		if ag := rs.Primary.Attributes["ad_group_id"]; ag != "" {
-			adGroupID, err := strconv.ParseInt(ag, 10, 64)
-			if err != nil {
-				return err
+			adGroupID, parseErr := strconv.ParseInt(ag, 10, 64)
+			if parseErr != nil {
+				return parseErr
 			}
-			got, err = c.GetAdGroupNegativeKeyword(context.Background(), campaignID, adGroupID, keywordID)
+			got, getErr = c.GetAdGroupNegativeKeyword(context.Background(), campaignID, adGroupID, keywordID)
 		} else {
-			got, err = c.GetCampaignNegativeKeyword(context.Background(), campaignID, keywordID)
+			got, getErr = c.GetCampaignNegativeKeyword(context.Background(), campaignID, keywordID)
 		}
-		if err != nil {
-			if client.IsNotFound(err) {
+		if getErr != nil {
+			if client.IsNotFound(getErr) {
 				continue
 			}
-			return err
+			return getErr
 		}
 		if got != nil && !got.Deleted {
 			return fmt.Errorf("negative keyword %s still exists", rs.Primary.ID)
