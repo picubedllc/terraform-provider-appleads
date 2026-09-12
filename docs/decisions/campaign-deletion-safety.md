@@ -15,17 +15,17 @@ Terraform's resource replacement model and casual `terraform destroy` usage make
 **Provider-level configuration is the primary guardrail.**
 
 ```hcl
-provider "appleads" {
+provider "apple_ads" {
   allow_campaign_deletion = false # default
 }
 ```
 
-When `allow_campaign_deletion` is `false` (the default), any attempt to destroy/archive an `appleads_campaign` returns a clear error diagnostic and does not call Apple's delete API.
+When `allow_campaign_deletion` is `false` (the default), any attempt to destroy/archive an `apple_ads_campaign` returns a clear error diagnostic and does not call Apple's delete API.
 
 Users who intentionally need deletion must opt in:
 
 ```hcl
-provider "appleads" {
+provider "apple_ads" {
   allow_campaign_deletion = true
 }
 ```
