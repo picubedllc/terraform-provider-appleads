@@ -213,10 +213,36 @@ func (r *campaignResource) Configure(ctx context.Context, req resource.Configure
 }
 
 func (r *campaignResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
-	resp.Diagnostics.AddError(
-		"Campaign Create not implemented",
-		"appleads_campaign Create is implemented in PI-10.",
-	)
+	var plan campaignModel
+	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	if r.client == nil {
+		resp.Diagnostics.AddError("Client not configured", "The provider client was not configured before creating appleads_campaign.")
+		return
+	}
+
+	in, diags := campaignCreateFromPlan(ctx, plan)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	created, err := r.client.CreateCampaign(ctx, in)
+	if err != nil {
+		resp.Diagnostics.Append(apiErrorDiagnostic("Unable to create Apple Ads campaign", err)...)
+		return
+	}
+
+	// Populate state entirely from the Apple response (not the plan) so computed
+	// fields and server-side normalization are captured correctly.
+	state, diags := campaignModelFromClient(ctx, created)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }
 
 func (r *campaignResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
