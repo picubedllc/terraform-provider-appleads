@@ -24,7 +24,10 @@ import (
 // moneyAmountRegexp validates decimal money strings without float conversion.
 var moneyAmountRegexp = regexp.MustCompile(`^(?:0|[1-9]\d*)(?:\.\d+)?$`)
 
-var _ resource.Resource = &campaignResource{}
+var (
+	_ resource.Resource                = &campaignResource{}
+	_ resource.ResourceWithImportState = &campaignResource{}
+)
 
 func NewCampaignResource() resource.Resource {
 	return &campaignResource{}
@@ -367,4 +370,41 @@ func (r *campaignResource) Delete(ctx context.Context, req resource.DeleteReques
 		resp.Diagnostics.Append(apiErrorDiagnostic("Unable to archive Apple Ads campaign", err)...)
 		return
 	}
+}
+
+func (r *campaignResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
+	if r.client == nil {
+		resp.Diagnostics.AddError("Client not configured", "The provider client was not configured before importing apple-ads_campaign.")
+		return
+	}
+
+	id, err := client.ParseCampaignID(req.ID)
+	if err != nil {
+		resp.Diagnostics.AddError("Invalid import id", "Expected a numeric Apple Ads campaign id.")
+		return
+	}
+
+	got, err := r.client.GetCampaign(ctx, id)
+	if err != nil {
+		if client.IsNotFound(err) {
+			resp.Diagnostics.AddError("Campaign not found", fmt.Sprintf("No Apple Ads campaign found with id %s.", req.ID))
+			return
+		}
+		resp.Diagnostics.Append(apiErrorDiagnostic("Unable to import Apple Ads campaign", err)...)
+		return
+	}
+	if got.Deleted {
+		resp.Diagnostics.AddError(
+			"Cannot import archived campaign",
+			fmt.Sprintf("Campaign %s is archived (deleted=true) in Apple Ads and cannot be imported as a managed resource.", req.ID),
+		)
+		return
+	}
+
+	state, diags := campaignModelFromClient(ctx, got)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }
