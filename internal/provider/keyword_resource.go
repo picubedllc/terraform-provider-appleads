@@ -33,7 +33,7 @@ type keywordResource struct {
 	client *client.Client
 }
 
-// keywordModel maps apple_ads_keyword.
+// keywordModel maps apple-ads_keyword.
 //
 // Immutable: ad_group_id, text, match_type (no RequiresReplace — Update errors instead).
 // Mutable: status, bid_amount, bid_currency
@@ -74,7 +74,7 @@ func (r *keywordResource) Schema(ctx context.Context, req resource.SchemaRequest
 			},
 			"ad_group_id": schema.StringAttribute{
 				Required:            true,
-				MarkdownDescription: "Parent ad group id (immutable). Changing this after create returns an error; create a new apple_ads_keyword instead.",
+				MarkdownDescription: "Parent ad group id (immutable). Changing this after create returns an error; create a new apple-ads_keyword instead.",
 			},
 			"text": schema.StringAttribute{
 				Required:            true,
@@ -224,7 +224,7 @@ func (r *keywordResource) Update(ctx context.Context, req resource.UpdateRequest
 			fmt.Sprintf(
 				"Apple Ads does not allow moving keyword %s between ad groups. "+
 					"Automatically replacing this resource would delete historical keyword identity. "+
-					"Create a new apple_ads_keyword explicitly instead.",
+					"Create a new apple-ads_keyword explicitly instead.",
 				state.ID.ValueString(),
 			),
 		)
@@ -235,7 +235,7 @@ func (r *keywordResource) Update(ctx context.Context, req resource.UpdateRequest
 			`Cannot change immutable keyword field "text"`,
 			fmt.Sprintf(
 				"Apple Ads does not allow changing keyword text in place for keyword %s. "+
-					"Create a new apple_ads_keyword with the desired text instead.",
+					"Create a new apple-ads_keyword with the desired text instead.",
 				state.ID.ValueString(),
 			),
 		)
@@ -246,7 +246,7 @@ func (r *keywordResource) Update(ctx context.Context, req resource.UpdateRequest
 			`Cannot change immutable keyword field "match_type"`,
 			fmt.Sprintf(
 				"Apple Ads does not allow changing match_type in place for keyword %s. "+
-					"Create a new apple_ads_keyword with the desired match type instead.",
+					"Create a new apple-ads_keyword with the desired match type instead.",
 				state.ID.ValueString(),
 			),
 		)
