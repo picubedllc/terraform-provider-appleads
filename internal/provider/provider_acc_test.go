@@ -7,8 +7,13 @@ import (
 	"os"
 	"testing"
 
+	"github.com/hashicorp/terraform-plugin-framework/provider"
 	"github.com/hashicorp/terraform-plugin-framework/providerserver"
+	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
 	"github.com/hashicorp/terraform-plugin-go/tfprotov6"
+	"github.com/hashicorp/terraform-plugin-go/tftypes"
+
+	"github.com/picubedllc/terraform-provider-appleads/internal/acctest"
 )
 
 // testAccProtoV6ProviderFactories are used to instantiate a provider during
@@ -21,20 +26,13 @@ var testAccProtoV6ProviderFactories = map[string]func() (tfprotov6.ProviderServe
 
 func testAccPreCheck(t *testing.T) {
 	t.Helper()
+	acctest.PreCheck(t)
 	required := []string{
-		"APPLEADS_ORG_ID",
-		"APPLEADS_CLIENT_ID",
-		"APPLEADS_TEAM_ID",
-		"APPLEADS_KEY_ID",
-		"APPLEADS_PRIVATE_KEY",
 		"APPLEADS_TEST_ADAM_ID",
 	}
 	for _, k := range required {
 		if os.Getenv(k) == "" {
-			// Skip rather than fail so accidental TF_ACC=1 in CI without
-			// secrets (or local runs missing a single var) stays green.
-			// Intentional ACC runs use `make testacc` with credentials set.
-			t.Skipf("%s must be set for acceptance tests", k)
+			t.Fatalf("%s must be set for campaign acceptance tests", k)
 		}
 	}
 }
@@ -49,4 +47,37 @@ provider "appleads" {
   allow_campaign_deletion = ` + allow + `
 }
 `
+}
+
+func TestAccProvider_ConfigureFromEnvAndReadACL(t *testing.T) {
+	acctest.PreCheck(t)
+
+	p := New("test")()
+	schemaResp := &provider.SchemaResponse{}
+	p.Schema(t.Context(), provider.SchemaRequest{}, schemaResp)
+
+	config := tfsdk.Config{
+		Schema: schemaResp.Schema,
+		Raw: tftypes.NewValue(schemaResp.Schema.Type().TerraformType(t.Context()), map[string]tftypes.Value{
+			"org_id":                  tftypes.NewValue(tftypes.String, nil),
+			"client_id":               tftypes.NewValue(tftypes.String, nil),
+			"team_id":                 tftypes.NewValue(tftypes.String, nil),
+			"key_id":                  tftypes.NewValue(tftypes.String, nil),
+			"private_key":             tftypes.NewValue(tftypes.String, nil),
+			"allow_campaign_deletion": tftypes.NewValue(tftypes.Bool, nil),
+		}),
+	}
+
+	resp := &provider.ConfigureResponse{}
+	p.Configure(t.Context(), provider.ConfigureRequest{Config: config}, resp)
+	if resp.Diagnostics.HasError() {
+		t.Fatalf("configure diagnostics: %#v", resp.Diagnostics)
+	}
+	data, ok := resp.ResourceData.(*ProviderData)
+	if !ok || data == nil || data.Client == nil {
+		t.Fatalf("ResourceData = %#v", resp.ResourceData)
+	}
+
+	acls := acctest.RequireUserACLs(t, data.Client)
+	acctest.RequireOrgAccess(t, acls, acctest.Credentials(t).OrgID)
 }
