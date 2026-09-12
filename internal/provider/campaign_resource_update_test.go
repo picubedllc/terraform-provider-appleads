@@ -47,7 +47,7 @@ func TestDetectImmutableCampaignChanges(t *testing.T) {
 	if !strings.Contains(detail, "countries_or_regions") || !strings.Contains(detail, "12345") {
 		t.Fatalf("detail = %s", detail)
 	}
-	if !strings.Contains(detail, "Create a new appleads_campaign") {
+	if !strings.Contains(detail, "Create a new apple_ads_campaign") {
 		t.Fatalf("detail = %s", detail)
 	}
 }
