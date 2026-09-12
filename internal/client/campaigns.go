@@ -80,3 +80,6 @@ type CampaignUpdate struct {
 type campaignUpdateEnvelope struct {
 	Campaign *CampaignUpdate `json:"campaign"`
 }
+
+// Referenced so the schema-stage package stays unused-clean until Update (PI-12) uses it.
+var _ = campaignUpdateEnvelope{}
