@@ -69,7 +69,10 @@ func TestCreateAdGroup_MoneyRoundTripNoFloat(t *testing.T) {
 		if err := json.NewDecoder(r.Body).Decode(&raw); err != nil {
 			t.Fatal(err)
 		}
-		bid := raw["defaultBidAmount"].(map[string]any)
+		bid, ok := raw["defaultBidAmount"].(map[string]any)
+		if !ok {
+			t.Fatalf("defaultBidAmount = %#v", raw["defaultBidAmount"])
+		}
 		if bid["amount"] != "0.99" {
 			t.Fatalf("amount = %#v (float noise?)", bid["amount"])
 		}

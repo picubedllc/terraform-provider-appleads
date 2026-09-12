@@ -32,10 +32,7 @@ func TestAdGroupModelFromClient(t *testing.T) {
 		EndTime:                "2026-12-01T00:00:00Z",
 		ModificationTime:       "2026-05-01T00:00:00Z",
 	}
-	state, diags := adGroupModelFromClient(got)
-	if diags.HasError() {
-		t.Fatal(diags)
-	}
+	state := adGroupModelFromClient(got)
 	if state.ID.ValueString() != "77" || state.CampaignID.ValueString() != "10" {
 		t.Fatalf("ids = %#v", state)
 	}
@@ -50,15 +47,12 @@ func TestAdGroupModelFromClient(t *testing.T) {
 func TestAdGroupModelFromClient_NullOptionals(t *testing.T) {
 	t.Parallel()
 
-	state, diags := adGroupModelFromClient(&client.AdGroup{
+	state := adGroupModelFromClient(&client.AdGroup{
 		ID:         1,
 		CampaignID: 2,
 		Name:       "x",
 		Status:     "PAUSED",
 	})
-	if diags.HasError() {
-		t.Fatal(diags)
-	}
 	if !state.CPAGoalAmount.IsNull() || !state.EndTime.IsNull() {
 		t.Fatalf("expected null optionals: %#v", state)
 	}
@@ -115,10 +109,7 @@ func TestAdGroupCreate_AndStateFromResponse(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	state, diags := adGroupModelFromClient(created)
-	if diags.HasError() {
-		t.Fatal(diags)
-	}
+	state := adGroupModelFromClient(created)
 	if state.ID.ValueString() != "55" || state.ServingStatus.ValueString() != "RUNNING" {
 		t.Fatalf("state = %#v", state)
 	}

@@ -9,7 +9,6 @@ import (
 	"strconv"
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
-	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
@@ -38,7 +37,7 @@ type adGroupResource struct {
 // adGroupModel maps appleads_ad_group.
 //
 // Immutable: campaign_id (no RequiresReplace — Update errors instead).
-// Mutable: name, status, default_bid_amount, cpa_goal_amount, automated_keywords_opt_in, end_time
+// Mutable: name, status, default_bid_amount, cpa_goal_amount, automated_keywords_opt_in, end_time.
 type adGroupModel struct {
 	ID                     types.String `tfsdk:"id"`
 	CampaignID             types.String `tfsdk:"campaign_id"`
@@ -193,8 +192,7 @@ func (r *adGroupResource) Create(ctx context.Context, req resource.CreateRequest
 		resp.Diagnostics.Append(apiErrorDiagnostic("Unable to create Apple Ads ad group", err)...)
 		return
 	}
-	state, diags := adGroupModelFromClient(created)
-	resp.Diagnostics.Append(diags...)
+	state := adGroupModelFromClient(created)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }
 
@@ -223,8 +221,7 @@ func (r *adGroupResource) Read(ctx context.Context, req resource.ReadRequest, re
 		resp.State.RemoveResource(ctx)
 		return
 	}
-	newState, diags := adGroupModelFromClient(got)
-	resp.Diagnostics.Append(diags...)
+	newState := adGroupModelFromClient(got)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &newState)...)
 }
 
@@ -276,8 +273,7 @@ func (r *adGroupResource) Update(ctx context.Context, req resource.UpdateRequest
 		resp.Diagnostics.Append(apiErrorDiagnostic("Unable to update Apple Ads ad group", err)...)
 		return
 	}
-	newState, diags := adGroupModelFromClient(updated)
-	resp.Diagnostics.Append(diags...)
+	newState := adGroupModelFromClient(updated)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &newState)...)
 }
 
@@ -315,13 +311,11 @@ func (r *adGroupResource) ImportState(ctx context.Context, req resource.ImportSt
 		resp.Diagnostics.AddError("Cannot import deleted ad group", fmt.Sprintf("Ad group %d is deleted.", adGroupID))
 		return
 	}
-	state, diags := adGroupModelFromClient(got)
-	resp.Diagnostics.Append(diags...)
+	state := adGroupModelFromClient(got)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }
 
-func adGroupModelFromClient(a *client.AdGroup) (adGroupModel, diag.Diagnostics) {
-	var diags diag.Diagnostics
+func adGroupModelFromClient(a *client.AdGroup) adGroupModel {
 	m := adGroupModel{
 		ID:                     types.StringValue(strconv.FormatInt(a.ID, 10)),
 		CampaignID:             types.StringValue(strconv.FormatInt(a.CampaignID, 10)),
@@ -348,5 +342,5 @@ func adGroupModelFromClient(a *client.AdGroup) (adGroupModel, diag.Diagnostics) 
 	} else {
 		m.EndTime = types.StringNull()
 	}
-	return m, diags
+	return m
 }
