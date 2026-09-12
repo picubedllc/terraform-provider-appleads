@@ -35,7 +35,7 @@ type campaignResource struct {
 	allowCampaignDeletion bool
 }
 
-// campaignModel is the Terraform state/plan model for apple_ads_campaign.
+// campaignModel is the Terraform state/plan model for apple-ads_campaign.
 //
 // Field mutability (must stay in sync with client.Campaign comments):
 //
@@ -148,7 +148,7 @@ func (r *campaignResource) Schema(ctx context.Context, req resource.SchemaReques
 			// Immutable — intentionally NO RequiresReplace plan modifiers (PI-12).
 			"adam_id": schema.StringAttribute{
 				Required:            true,
-				MarkdownDescription: "Adam ID of the promoted app (immutable). Changing this after create returns an error; create a new apple_ads_campaign instead.",
+				MarkdownDescription: "Adam ID of the promoted app (immutable). Changing this after create returns an error; create a new apple-ads_campaign instead.",
 				Validators: []validator.String{
 					stringvalidator.LengthAtLeast(1),
 				},
@@ -156,7 +156,7 @@ func (r *campaignResource) Schema(ctx context.Context, req resource.SchemaReques
 			"countries_or_regions": schema.ListAttribute{
 				Required:            true,
 				ElementType:         types.StringType,
-				MarkdownDescription: "Country or region codes targeted by the campaign (immutable). Changing this after create returns an error; create a new apple_ads_campaign instead.",
+				MarkdownDescription: "Country or region codes targeted by the campaign (immutable). Changing this after create returns an error; create a new apple-ads_campaign instead.",
 				Validators: []validator.List{
 					listvalidator.SizeAtLeast(1),
 				},
@@ -248,20 +248,20 @@ func (r *campaignResource) Create(ctx context.Context, req resource.CreateReques
 func (r *campaignResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
 	resp.Diagnostics.AddError(
 		"Campaign Read not implemented",
-		"apple_ads_campaign Read is implemented in PI-11.",
+		"apple-ads_campaign Read is implemented in PI-11.",
 	)
 }
 
 func (r *campaignResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
 	resp.Diagnostics.AddError(
 		"Campaign Update not implemented",
-		"apple_ads_campaign Update is implemented in PI-12.",
+		"apple-ads_campaign Update is implemented in PI-12.",
 	)
 }
 
 func (r *campaignResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
 	resp.Diagnostics.AddError(
 		"Campaign Delete not implemented",
-		"apple_ads_campaign Delete is implemented in PI-13.",
+		"apple-ads_campaign Delete is implemented in PI-13.",
 	)
 }
