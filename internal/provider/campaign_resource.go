@@ -35,7 +35,7 @@ type campaignResource struct {
 	allowCampaignDeletion bool
 }
 
-// campaignModel is the Terraform state/plan model for apple_ads_campaign.
+// campaignModel is the Terraform state/plan model for apple-ads_campaign.
 //
 // Field mutability (must stay in sync with client.Campaign comments):
 //
@@ -148,7 +148,7 @@ func (r *campaignResource) Schema(ctx context.Context, req resource.SchemaReques
 			// Immutable — intentionally NO RequiresReplace plan modifiers (PI-12).
 			"adam_id": schema.StringAttribute{
 				Required:            true,
-				MarkdownDescription: "Adam ID of the promoted app (immutable). Changing this after create returns an error; create a new apple_ads_campaign instead.",
+				MarkdownDescription: "Adam ID of the promoted app (immutable). Changing this after create returns an error; create a new apple-ads_campaign instead.",
 				Validators: []validator.String{
 					stringvalidator.LengthAtLeast(1),
 				},
@@ -156,7 +156,7 @@ func (r *campaignResource) Schema(ctx context.Context, req resource.SchemaReques
 			"countries_or_regions": schema.ListAttribute{
 				Required:            true,
 				ElementType:         types.StringType,
-				MarkdownDescription: "Country or region codes targeted by the campaign (immutable). Changing this after create returns an error; create a new apple_ads_campaign instead.",
+				MarkdownDescription: "Country or region codes targeted by the campaign (immutable). Changing this after create returns an error; create a new apple-ads_campaign instead.",
 				Validators: []validator.List{
 					listvalidator.SizeAtLeast(1),
 				},
@@ -219,7 +219,7 @@ func (r *campaignResource) Create(ctx context.Context, req resource.CreateReques
 		return
 	}
 	if r.client == nil {
-		resp.Diagnostics.AddError("Client not configured", "The provider client was not configured before creating apple_ads_campaign.")
+		resp.Diagnostics.AddError("Client not configured", "The provider client was not configured before creating apple-ads_campaign.")
 		return
 	}
 
@@ -252,7 +252,7 @@ func (r *campaignResource) Read(ctx context.Context, req resource.ReadRequest, r
 		return
 	}
 	if r.client == nil {
-		resp.Diagnostics.AddError("Client not configured", "The provider client was not configured before reading apple_ads_campaign.")
+		resp.Diagnostics.AddError("Client not configured", "The provider client was not configured before reading apple-ads_campaign.")
 		return
 	}
 
@@ -300,7 +300,7 @@ func (r *campaignResource) Update(ctx context.Context, req resource.UpdateReques
 		return
 	}
 	if r.client == nil {
-		resp.Diagnostics.AddError("Client not configured", "The provider client was not configured before updating apple_ads_campaign.")
+		resp.Diagnostics.AddError("Client not configured", "The provider client was not configured before updating apple-ads_campaign.")
 		return
 	}
 
