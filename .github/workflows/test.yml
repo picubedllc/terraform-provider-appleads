@@ -52,9 +52,11 @@ jobs:
           git diff --compact-summary --exit-code || \
             (echo; echo "Unexpected difference in directories after code generation. Run 'make generate' command and commit."; exit 1)
 
-  # Run acceptance tests in a matrix with Terraform CLI versions
+  # Run provider unit tests against a Terraform CLI version matrix.
+  # Live Apple Ads acceptance tests (TF_ACC=1) are opt-in via `make testacc`
+  # and require credentials; they are excluded from normal PR CI (PI-15).
   test:
-    name: 'Acceptance Tests: Terraform ${{ matrix.terraform }}'
+    name: 'Tests: Terraform ${{ matrix.terraform }}'
     needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -76,7 +78,5 @@ jobs:
           terraform_version: ${{ matrix.terraform }}
           terraform_wrapper: false
       - run: go mod download
-      - env:
-          TF_ACC: "1"
-        run: go test -v -cover ./internal/provider/
+      - run: go test -v -cover ./internal/provider/
         timeout-minutes: 10
