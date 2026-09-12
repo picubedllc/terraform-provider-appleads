@@ -9,7 +9,6 @@ import (
 	"strconv"
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
-	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
@@ -38,7 +37,7 @@ type keywordResource struct {
 //
 // Immutable: ad_group_id, text, match_type (no RequiresReplace — Update errors instead).
 // Mutable: status, bid_amount, bid_currency
-// Computed: id, campaign_id, modification_time
+// Computed: id, campaign_id, modification_time.
 type keywordModel struct {
 	ID               types.String `tfsdk:"id"`
 	CampaignID       types.String `tfsdk:"campaign_id"`
@@ -177,8 +176,7 @@ func (r *keywordResource) Create(ctx context.Context, req resource.CreateRequest
 	if created.AdGroupID == 0 {
 		created.AdGroupID = adGroupID
 	}
-	state, diags := keywordModelFromClient(created)
-	resp.Diagnostics.Append(diags...)
+	state := keywordModelFromClient(created)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }
 
@@ -208,8 +206,7 @@ func (r *keywordResource) Read(ctx context.Context, req resource.ReadRequest, re
 		resp.State.RemoveResource(ctx)
 		return
 	}
-	newState, diags := keywordModelFromClient(got)
-	resp.Diagnostics.Append(diags...)
+	newState := keywordModelFromClient(got)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &newState)...)
 }
 
@@ -297,8 +294,7 @@ func (r *keywordResource) Update(ctx context.Context, req resource.UpdateRequest
 	if updated.MatchType == "" {
 		updated.MatchType = state.MatchType.ValueString()
 	}
-	newState, diags := keywordModelFromClient(updated)
-	resp.Diagnostics.Append(diags...)
+	newState := keywordModelFromClient(updated)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &newState)...)
 }
 
@@ -325,9 +321,9 @@ func (r *keywordResource) ImportState(ctx context.Context, req resource.ImportSt
 	}
 	var got *client.Keyword
 	if campaignID == 0 {
-		ag, err := r.client.FindAdGroupByID(ctx, adGroupID)
-		if err != nil {
-			resp.Diagnostics.Append(apiErrorDiagnostic("Unable to resolve ad group for keyword import", err)...)
+		ag, findErr := r.client.FindAdGroupByID(ctx, adGroupID)
+		if findErr != nil {
+			resp.Diagnostics.Append(apiErrorDiagnostic("Unable to resolve ad group for keyword import", findErr)...)
 			return
 		}
 		campaignID = ag.CampaignID
@@ -349,13 +345,11 @@ func (r *keywordResource) ImportState(ctx context.Context, req resource.ImportSt
 	if got.AdGroupID == 0 {
 		got.AdGroupID = adGroupID
 	}
-	state, diags := keywordModelFromClient(got)
-	resp.Diagnostics.Append(diags...)
+	state := keywordModelFromClient(got)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }
 
-func keywordModelFromClient(k *client.Keyword) (keywordModel, diag.Diagnostics) {
-	var diags diag.Diagnostics
+func keywordModelFromClient(k *client.Keyword) keywordModel {
 	m := keywordModel{
 		ID:               types.StringValue(strconv.FormatInt(k.ID, 10)),
 		CampaignID:       types.StringValue(strconv.FormatInt(k.CampaignID, 10)),
@@ -372,5 +366,5 @@ func keywordModelFromClient(k *client.Keyword) (keywordModel, diag.Diagnostics) 
 		m.BidAmount = types.StringNull()
 		m.BidCurrency = types.StringNull()
 	}
-	return m, diags
+	return m
 }

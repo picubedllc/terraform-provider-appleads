@@ -30,7 +30,7 @@ func TestAccKeywordResource_Lifecycle(t *testing.T) {
 		CheckDestroy:             testAccCheckKeywordDestroy,
 		Steps: []resource.TestStep{
 			{
-				Config: testAccProviderConfig(true) + testAccCampaignPausedConfig("parent", adamID) + testAccAdGroupPausedConfig("parent", "ag") + `
+				Config: testAccProviderConfig(true) + testAccCampaignPausedConfig("parent", adamID) + testAccAdGroupPausedConfig() + `
 resource "appleads_keyword" "test" {
   ad_group_id  = appleads_ad_group.ag.id
   text         = "tf acc keyword create"
@@ -51,7 +51,7 @@ resource "appleads_keyword" "test" {
 				),
 			},
 			{
-				Config: testAccProviderConfig(true) + testAccCampaignPausedConfig("parent", adamID) + testAccAdGroupPausedConfig("parent", "ag") + `
+				Config: testAccProviderConfig(true) + testAccCampaignPausedConfig("parent", adamID) + testAccAdGroupPausedConfig() + `
 resource "appleads_keyword" "test" {
   ad_group_id  = appleads_ad_group.ag.id
   text         = "tf acc keyword create"
@@ -94,7 +94,7 @@ func TestAccKeywordResource_ImmutableTextRejected(t *testing.T) {
 		CheckDestroy:             testAccCheckKeywordDestroy,
 		Steps: []resource.TestStep{
 			{
-				Config: testAccProviderConfig(true) + testAccCampaignPausedConfig("parent", adamID) + testAccAdGroupPausedConfig("parent", "ag") + `
+				Config: testAccProviderConfig(true) + testAccCampaignPausedConfig("parent", adamID) + testAccAdGroupPausedConfig() + `
 resource "appleads_keyword" "immutable" {
   ad_group_id  = appleads_ad_group.ag.id
   text         = "tf acc keyword immutable"
@@ -113,7 +113,7 @@ resource "appleads_keyword" "immutable" {
 				),
 			},
 			{
-				Config: testAccProviderConfig(true) + testAccCampaignPausedConfig("parent", adamID) + testAccAdGroupPausedConfig("parent", "ag") + `
+				Config: testAccProviderConfig(true) + testAccCampaignPausedConfig("parent", adamID) + testAccAdGroupPausedConfig() + `
 resource "appleads_keyword" "immutable" {
   ad_group_id  = appleads_ad_group.ag.id
   text         = "tf acc keyword changed"
@@ -126,7 +126,7 @@ resource "appleads_keyword" "immutable" {
 				ExpectError: regexp.MustCompile(`Cannot change immutable keyword field "text"`),
 			},
 			{
-				Config: testAccProviderConfig(true) + testAccCampaignPausedConfig("parent", adamID) + testAccAdGroupPausedConfig("parent", "ag") + `
+				Config: testAccProviderConfig(true) + testAccCampaignPausedConfig("parent", adamID) + testAccAdGroupPausedConfig() + `
 resource "appleads_keyword" "immutable" {
   ad_group_id  = appleads_ad_group.ag.id
   text         = "tf acc keyword immutable"
@@ -150,17 +150,17 @@ resource "appleads_keyword" "immutable" {
 	})
 }
 
-func testAccAdGroupPausedConfig(campaignName, adGroupName string) string {
-	return fmt.Sprintf(`
-resource "appleads_ad_group" "%[2]s" {
-  campaign_id               = appleads_campaign.%[1]s.id
-  name                      = "tf-acc-ag-%[2]s"
+func testAccAdGroupPausedConfig() string {
+	return `
+resource "appleads_ad_group" "ag" {
+  campaign_id               = appleads_campaign.parent.id
+  name                      = "tf-acc-ag-ag"
   status                    = "PAUSED"
   default_bid_amount        = "1.00"
   default_bid_currency      = "USD"
   automated_keywords_opt_in = false
 }
-`, campaignName, adGroupName)
+`
 }
 
 func testAccCheckKeywordDestroy(s *terraform.State) error {

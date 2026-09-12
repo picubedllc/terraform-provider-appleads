@@ -29,10 +29,7 @@ func TestKeywordModelFromClient(t *testing.T) {
 		BidAmount:        &client.Money{Amount: "1.50", Currency: "USD"},
 		ModificationTime: "2026-06-01T00:00:00Z",
 	}
-	state, diags := keywordModelFromClient(got)
-	if diags.HasError() {
-		t.Fatal(diags)
-	}
+	state := keywordModelFromClient(got)
 	if state.ID.ValueString() != "99" || state.AdGroupID.ValueString() != "20" {
 		t.Fatalf("ids = %#v", state)
 	}
@@ -47,12 +44,9 @@ func TestKeywordModelFromClient(t *testing.T) {
 func TestKeywordModelFromClient_NullBid(t *testing.T) {
 	t.Parallel()
 
-	state, diags := keywordModelFromClient(&client.Keyword{
+	state := keywordModelFromClient(&client.Keyword{
 		ID: 1, CampaignID: 2, AdGroupID: 3, Text: "x", MatchType: "BROAD", Status: "PAUSED",
 	})
-	if diags.HasError() {
-		t.Fatal(diags)
-	}
 	if !state.BidAmount.IsNull() || !state.BidCurrency.IsNull() {
 		t.Fatalf("expected null bid: %#v", state)
 	}
@@ -111,10 +105,7 @@ func TestKeywordCreate_AndStateFromResponse(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	state, diags := keywordModelFromClient(created)
-	if diags.HasError() {
-		t.Fatal(diags)
-	}
+	state := keywordModelFromClient(created)
 	if state.ID.ValueString() != "55" || state.BidAmount.ValueString() != "1.25" {
 		t.Fatalf("state = %#v", state)
 	}
