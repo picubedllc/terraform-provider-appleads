@@ -24,14 +24,26 @@ const (
 	EnvTeamID     = "APPLEADS_TEAM_ID"
 	EnvKeyID      = "APPLEADS_KEY_ID"
 	EnvPrivateKey = "APPLEADS_PRIVATE_KEY"
+	EnvLiveTest   = "APPLEADS_LIVE_TEST"
 )
 
-// PreCheck skips live tests unless TF_ACC=1 and all APPLEADS_* credentials are set.
+// liveTestsEnabled reports whether tests that hit Apple's APIs should run.
+func liveTestsEnabled() bool {
+	switch strings.ToLower(strings.TrimSpace(os.Getenv(EnvLiveTest))) {
+	case "1", "true", "yes":
+		return true
+	default:
+		return false
+	}
+}
+
+// PreCheck skips live Apple Ads tests unless APPLEADS_LIVE_TEST is set.
+// If the flag is set but credentials are missing, it fails so CI cannot silently no-op.
 func PreCheck(t *testing.T) {
 	t.Helper()
 
-	if os.Getenv("TF_ACC") == "" {
-		t.Skip("acceptance tests skipped unless TF_ACC=1")
+	if !liveTestsEnabled() {
+		t.Skip("live Apple Ads tests skipped unless APPLEADS_LIVE_TEST=1")
 	}
 
 	var missing []string
@@ -41,7 +53,7 @@ func PreCheck(t *testing.T) {
 		}
 	}
 	if len(missing) > 0 {
-		t.Skipf("acceptance tests skipped; missing %s", strings.Join(missing, ", "))
+		t.Fatalf("APPLEADS_LIVE_TEST=1 but missing %s", strings.Join(missing, ", "))
 	}
 }
 
