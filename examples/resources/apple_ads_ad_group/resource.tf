@@ -2,8 +2,8 @@
 # campaign_id is immutable — changing it returns an error instead of replacing
 # the resource (which would destroy ad-group-level performance history).
 
-resource "appleads_ad_group" "main" {
-  campaign_id               = appleads_campaign.example.id
+resource "apple_ads_ad_group" "main" {
+  campaign_id               = apple_ads_campaign.example.id
   name                      = "Search — core terms"
   status                    = "PAUSED"
   default_bid_amount        = "1.25"
