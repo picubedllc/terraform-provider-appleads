@@ -252,7 +252,7 @@ func (r *campaignResource) Read(ctx context.Context, req resource.ReadRequest, r
 		return
 	}
 	if r.client == nil {
-		resp.Diagnostics.AddError("Client not configured", "The provider client was not configured before reading appleads_campaign.")
+		resp.Diagnostics.AddError("Client not configured", "The provider client was not configured before reading apple_ads_campaign.")
 		return
 	}
 
