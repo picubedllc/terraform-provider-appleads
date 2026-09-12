@@ -40,19 +40,19 @@ type adGroupResource struct {
 // Immutable: campaign_id (no RequiresReplace — Update errors instead).
 // Mutable: name, status, default_bid_amount, cpa_goal_amount, automated_keywords_opt_in, end_time
 type adGroupModel struct {
-	ID                       types.String `tfsdk:"id"`
-	CampaignID               types.String `tfsdk:"campaign_id"`
-	Name                     types.String `tfsdk:"name"`
-	Status                   types.String `tfsdk:"status"`
-	DefaultBidAmount         types.String `tfsdk:"default_bid_amount"`
-	DefaultBidCurrency       types.String `tfsdk:"default_bid_currency"`
-	CPAGoalAmount            types.String `tfsdk:"cpa_goal_amount"`
-	CPAGoalCurrency          types.String `tfsdk:"cpa_goal_currency"`
-	AutomatedKeywordsOptIn   types.Bool   `tfsdk:"automated_keywords_opt_in"`
-	EndTime                  types.String `tfsdk:"end_time"`
-	ServingStatus            types.String `tfsdk:"serving_status"`
-	DisplayStatus            types.String `tfsdk:"display_status"`
-	ModificationTime         types.String `tfsdk:"modification_time"`
+	ID                     types.String `tfsdk:"id"`
+	CampaignID             types.String `tfsdk:"campaign_id"`
+	Name                   types.String `tfsdk:"name"`
+	Status                 types.String `tfsdk:"status"`
+	DefaultBidAmount       types.String `tfsdk:"default_bid_amount"`
+	DefaultBidCurrency     types.String `tfsdk:"default_bid_currency"`
+	CPAGoalAmount          types.String `tfsdk:"cpa_goal_amount"`
+	CPAGoalCurrency        types.String `tfsdk:"cpa_goal_currency"`
+	AutomatedKeywordsOptIn types.Bool   `tfsdk:"automated_keywords_opt_in"`
+	EndTime                types.String `tfsdk:"end_time"`
+	ServingStatus          types.String `tfsdk:"serving_status"`
+	DisplayStatus          types.String `tfsdk:"display_status"`
+	ModificationTime       types.String `tfsdk:"modification_time"`
 }
 
 func (r *adGroupResource) Metadata(ctx context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
@@ -323,13 +323,13 @@ func (r *adGroupResource) ImportState(ctx context.Context, req resource.ImportSt
 func adGroupModelFromClient(a *client.AdGroup) (adGroupModel, diag.Diagnostics) {
 	var diags diag.Diagnostics
 	m := adGroupModel{
-		ID:               types.StringValue(strconv.FormatInt(a.ID, 10)),
-		CampaignID:       types.StringValue(strconv.FormatInt(a.CampaignID, 10)),
-		Name:             types.StringValue(a.Name),
-		Status:           types.StringValue(a.Status),
-		ServingStatus:    types.StringValue(a.ServingStatus),
-		DisplayStatus:    types.StringValue(a.DisplayStatus),
-		ModificationTime: types.StringValue(a.ModificationTime),
+		ID:                     types.StringValue(strconv.FormatInt(a.ID, 10)),
+		CampaignID:             types.StringValue(strconv.FormatInt(a.CampaignID, 10)),
+		Name:                   types.StringValue(a.Name),
+		Status:                 types.StringValue(a.Status),
+		ServingStatus:          types.StringValue(a.ServingStatus),
+		DisplayStatus:          types.StringValue(a.DisplayStatus),
+		ModificationTime:       types.StringValue(a.ModificationTime),
 		AutomatedKeywordsOptIn: types.BoolValue(a.AutomatedKeywordsOptIn),
 	}
 	if a.DefaultBidAmount != nil {
