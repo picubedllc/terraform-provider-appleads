@@ -1,4 +1,4 @@
-# `apple_ads_negative_keyword`
+# `apple-ads_negative_keyword`
 
 Manages an Apple Ads negative keyword at **campaign** or **ad-group** scope.
 
@@ -8,8 +8,8 @@ are immutable — changing them returns an error instead of replacing the resour
 ## Import
 
 ```bash
-terraform import apple_ads_negative_keyword.campaign_free campaign/111/555
-terraform import apple_ads_negative_keyword.adgroup_cheap adgroup/111/222/666
+terraform import apple-ads_negative_keyword.campaign_free campaign/111/555
+terraform import apple-ads_negative_keyword.adgroup_cheap adgroup/111/222/666
 # Or without campaign id (resolved via ad group find):
-terraform import apple_ads_negative_keyword.adgroup_cheap adgroup/222/666
+terraform import apple-ads_negative_keyword.adgroup_cheap adgroup/222/666
 ```
