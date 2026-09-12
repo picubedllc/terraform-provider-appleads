@@ -102,8 +102,8 @@ resource "appleads_campaign" "protected" {
 `, adamID),
 			},
 			{
-				Config: testAccProviderConfig(false),
-				Destroy: true,
+				Config:      testAccProviderConfig(false),
+				Destroy:     true,
 				ExpectError: regexp.MustCompile(`Campaign deletion is disabled by provider configuration`),
 			},
 		},
