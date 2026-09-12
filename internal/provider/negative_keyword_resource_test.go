@@ -17,13 +17,10 @@ import (
 func TestNegativeKeywordModelFromClient_CampaignScoped(t *testing.T) {
 	t.Parallel()
 
-	state, diags := negativeKeywordModelFromClient(&client.NegativeKeyword{
+	state := negativeKeywordModelFromClient(&client.NegativeKeyword{
 		ID: 5, CampaignID: 10, Text: "free", MatchType: "EXACT", Status: "ACTIVE",
 		ModificationTime: "2026-07-01T00:00:00Z",
 	})
-	if diags.HasError() {
-		t.Fatal(diags)
-	}
 	if state.ID.ValueString() != "5" || !state.AdGroupID.IsNull() {
 		t.Fatalf("state = %#v", state)
 	}
@@ -35,12 +32,9 @@ func TestNegativeKeywordModelFromClient_CampaignScoped(t *testing.T) {
 func TestNegativeKeywordModelFromClient_AdGroupScoped(t *testing.T) {
 	t.Parallel()
 
-	state, diags := negativeKeywordModelFromClient(&client.NegativeKeyword{
+	state := negativeKeywordModelFromClient(&client.NegativeKeyword{
 		ID: 6, CampaignID: 10, AdGroupID: 20, Text: "cheap", MatchType: "BROAD", Status: "PAUSED",
 	})
-	if diags.HasError() {
-		t.Fatal(diags)
-	}
 	if state.AdGroupID.ValueString() != "20" || state.CampaignID.ValueString() != "10" {
 		t.Fatalf("state = %#v", state)
 	}
@@ -98,10 +92,7 @@ func TestNegativeKeywordCreate_CampaignAndAdGroup(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	state, diags := negativeKeywordModelFromClient(adg)
-	if diags.HasError() {
-		t.Fatal(diags)
-	}
+	state := negativeKeywordModelFromClient(adg)
 	if state.ID.ValueString() != "6" || state.AdGroupID.ValueString() != "20" {
 		t.Fatalf("state = %#v", state)
 	}

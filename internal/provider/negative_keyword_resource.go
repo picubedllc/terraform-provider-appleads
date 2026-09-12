@@ -10,7 +10,6 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/resourcevalidator"
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
-	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
@@ -180,8 +179,7 @@ func (r *negativeKeywordResource) Create(ctx context.Context, req resource.Creat
 		resp.Diagnostics.Append(apiErrorDiagnostic("Unable to create Apple Ads negative keyword", err)...)
 		return
 	}
-	state, diags := negativeKeywordModelFromClient(created)
-	resp.Diagnostics.Append(diags...)
+	state := negativeKeywordModelFromClient(created)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }
 
@@ -204,8 +202,7 @@ func (r *negativeKeywordResource) Read(ctx context.Context, req resource.ReadReq
 		resp.State.RemoveResource(ctx)
 		return
 	}
-	newState, diags := negativeKeywordModelFromClient(got)
-	resp.Diagnostics.Append(diags...)
+	newState := negativeKeywordModelFromClient(got)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &newState)...)
 }
 
@@ -218,7 +215,7 @@ func (r *negativeKeywordResource) Update(ctx context.Context, req resource.Updat
 	}
 
 	if state.CampaignID.ValueString() != plan.CampaignID.ValueString() &&
-		!(state.AdGroupID.ValueString() != "" && plan.CampaignID.IsUnknown()) {
+		(state.AdGroupID.ValueString() == "" || !plan.CampaignID.IsUnknown()) {
 		// Allow computed campaign_id unknown in plan for ad-group-scoped resources.
 		if !plan.CampaignID.IsUnknown() {
 			resp.Diagnostics.AddError(
@@ -288,8 +285,7 @@ func (r *negativeKeywordResource) Update(ctx context.Context, req resource.Updat
 	if updated.MatchType == "" {
 		updated.MatchType = state.MatchType.ValueString()
 	}
-	newState, diags := negativeKeywordModelFromClient(updated)
-	resp.Diagnostics.Append(diags...)
+	newState := negativeKeywordModelFromClient(updated)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &newState)...)
 }
 
@@ -351,8 +347,7 @@ func (r *negativeKeywordResource) ImportState(ctx context.Context, req resource.
 	if scope == "adgroup" && got.AdGroupID == 0 {
 		got.AdGroupID = adGroupID
 	}
-	state, diags := negativeKeywordModelFromClient(got)
-	resp.Diagnostics.Append(diags...)
+	state := negativeKeywordModelFromClient(got)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }
 
@@ -369,8 +364,7 @@ func (r *negativeKeywordResource) fetch(ctx context.Context, state negativeKeywo
 	return r.client.GetCampaignNegativeKeyword(ctx, campaignID, keywordID)
 }
 
-func negativeKeywordModelFromClient(k *client.NegativeKeyword) (negativeKeywordModel, diag.Diagnostics) {
-	var diags diag.Diagnostics
+func negativeKeywordModelFromClient(k *client.NegativeKeyword) negativeKeywordModel {
 	m := negativeKeywordModel{
 		ID:               types.StringValue(strconv.FormatInt(k.ID, 10)),
 		CampaignID:       types.StringValue(strconv.FormatInt(k.CampaignID, 10)),
@@ -384,7 +378,7 @@ func negativeKeywordModelFromClient(k *client.NegativeKeyword) (negativeKeywordM
 	} else {
 		m.AdGroupID = types.StringNull()
 	}
-	return m, diags
+	return m
 }
 
 func nullish(v types.String) bool {
