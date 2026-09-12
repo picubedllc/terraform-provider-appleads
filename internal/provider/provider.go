@@ -55,7 +55,7 @@ type ProviderData struct {
 }
 
 func (p *AppleAdsProvider) Metadata(ctx context.Context, req provider.MetadataRequest, resp *provider.MetadataResponse) {
-	resp.TypeName = "apple_ads"
+	resp.TypeName = "apple-ads"
 	resp.Version = p.version
 }
 
