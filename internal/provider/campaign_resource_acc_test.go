@@ -35,7 +35,7 @@ func TestAccCampaignResource_Lifecycle(t *testing.T) {
 		Steps: []resource.TestStep{
 			{
 				Config: testAccProviderConfig(true) + fmt.Sprintf(`
-resource "apple_ads_campaign" "test" {
+resource "apple-ads_campaign" "test" {
   name                 = "%[1]s-create"
   adam_id              = "%[2]s"
   countries_or_regions = ["US"]
@@ -45,16 +45,16 @@ resource "apple_ads_campaign" "test" {
 }
 `, namePrefix, adamID),
 				Check: resource.ComposeAggregateTestCheckFunc(
-					resource.TestCheckResourceAttrSet("apple_ads_campaign.test", "id"),
-					resource.TestCheckResourceAttr("apple_ads_campaign.test", "name", namePrefix+"-create"),
-					resource.TestCheckResourceAttr("apple_ads_campaign.test", "status", "PAUSED"),
-					resource.TestCheckResourceAttr("apple_ads_campaign.test", "daily_budget_amount", "1.00"),
+					resource.TestCheckResourceAttrSet("apple-ads_campaign.test", "id"),
+					resource.TestCheckResourceAttr("apple-ads_campaign.test", "name", namePrefix+"-create"),
+					resource.TestCheckResourceAttr("apple-ads_campaign.test", "status", "PAUSED"),
+					resource.TestCheckResourceAttr("apple-ads_campaign.test", "daily_budget_amount", "1.00"),
 				),
 			},
 			// Update mutable fields
 			{
 				Config: testAccProviderConfig(true) + fmt.Sprintf(`
-resource "apple_ads_campaign" "test" {
+resource "apple-ads_campaign" "test" {
   name                 = "%[1]s-updated"
   adam_id              = "%[2]s"
   countries_or_regions = ["US"]
@@ -64,13 +64,13 @@ resource "apple_ads_campaign" "test" {
 }
 `, namePrefix, adamID),
 				Check: resource.ComposeAggregateTestCheckFunc(
-					resource.TestCheckResourceAttr("apple_ads_campaign.test", "name", namePrefix+"-updated"),
-					resource.TestCheckResourceAttr("apple_ads_campaign.test", "daily_budget_amount", "2.00"),
+					resource.TestCheckResourceAttr("apple-ads_campaign.test", "name", namePrefix+"-updated"),
+					resource.TestCheckResourceAttr("apple-ads_campaign.test", "daily_budget_amount", "2.00"),
 				),
 			},
 			// Import
 			{
-				ResourceName:      "apple_ads_campaign.test",
+				ResourceName:      "apple-ads_campaign.test",
 				ImportState:       true,
 				ImportStateVerify: true,
 			},
@@ -91,7 +91,7 @@ func TestAccCampaignResource_DeletionProtection(t *testing.T) {
 		Steps: []resource.TestStep{
 			{
 				Config: testAccProviderConfig(false) + fmt.Sprintf(`
-resource "apple_ads_campaign" "protected" {
+resource "apple-ads_campaign" "protected" {
   name                 = "tf-acc-protected"
   adam_id              = "%s"
   countries_or_regions = ["US"]
@@ -125,7 +125,7 @@ func TestAccCampaignResource_ImmutableChangeRejected(t *testing.T) {
 		Steps: []resource.TestStep{
 			{
 				Config: testAccProviderConfig(true) + fmt.Sprintf(`
-resource "apple_ads_campaign" "immutable" {
+resource "apple-ads_campaign" "immutable" {
   name                 = "tf-acc-immutable"
   adam_id              = "%s"
   countries_or_regions = ["US"]
@@ -135,9 +135,9 @@ resource "apple_ads_campaign" "immutable" {
 }
 `, adamID),
 				Check: resource.ComposeAggregateTestCheckFunc(
-					resource.TestCheckResourceAttrSet("apple_ads_campaign.immutable", "id"),
+					resource.TestCheckResourceAttrSet("apple-ads_campaign.immutable", "id"),
 					func(s *terraform.State) error {
-						rs := s.RootModule().Resources["apple_ads_campaign.immutable"]
+						rs := s.RootModule().Resources["apple-ads_campaign.immutable"]
 						originalID = rs.Primary.ID
 						return nil
 					},
@@ -145,7 +145,7 @@ resource "apple_ads_campaign" "immutable" {
 			},
 			{
 				Config: testAccProviderConfig(true) + fmt.Sprintf(`
-resource "apple_ads_campaign" "immutable" {
+resource "apple-ads_campaign" "immutable" {
   name                 = "tf-acc-immutable"
   adam_id              = "%s"
   countries_or_regions = ["CA"]
@@ -159,7 +159,7 @@ resource "apple_ads_campaign" "immutable" {
 			{
 				// Prove original campaign identity was preserved (not archived/replaced).
 				Config: testAccProviderConfig(true) + fmt.Sprintf(`
-resource "apple_ads_campaign" "immutable" {
+resource "apple-ads_campaign" "immutable" {
   name                 = "tf-acc-immutable"
   adam_id              = "%s"
   countries_or_regions = ["US"]
@@ -170,7 +170,7 @@ resource "apple_ads_campaign" "immutable" {
 `, adamID),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					func(s *terraform.State) error {
-						rs := s.RootModule().Resources["apple_ads_campaign.immutable"]
+						rs := s.RootModule().Resources["apple-ads_campaign.immutable"]
 						if rs.Primary.ID != originalID {
 							return fmt.Errorf("campaign id changed from %s to %s (replacement occurred)", originalID, rs.Primary.ID)
 						}
@@ -206,7 +206,7 @@ func testAccCheckCampaignDestroy(s *terraform.State) error {
 		return err
 	}
 	for _, rs := range s.RootModule().Resources {
-		if rs.Type != "apple_ads_campaign" {
+		if rs.Type != "apple-ads_campaign" {
 			continue
 		}
 		id, err := strconv.ParseInt(rs.Primary.ID, 10, 64)

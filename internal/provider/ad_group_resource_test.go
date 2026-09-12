@@ -131,7 +131,7 @@ func TestAdGroupUpdate_ImmutableCampaignIDMessage(t *testing.T) {
 	msg := `Cannot change immutable ad group field "campaign_id"`
 	detail := "Apple Ads does not allow moving ad group 77 between campaigns. " +
 		"Automatically replacing this resource would delete historical ad group identity. " +
-		"Create a new apple_ads_ad_group explicitly instead."
+		"Create a new apple-ads_ad_group explicitly instead."
 	if !strings.Contains(detail, "77") || !strings.Contains(msg, "campaign_id") {
 		t.Fatal("message contract drifted")
 	}
