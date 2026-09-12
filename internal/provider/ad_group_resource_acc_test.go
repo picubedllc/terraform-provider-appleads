@@ -32,8 +32,8 @@ func TestAccAdGroupResource_Lifecycle(t *testing.T) {
 		Steps: []resource.TestStep{
 			{
 				Config: testAccProviderConfig(true) + testAccCampaignPausedConfig("parent", adamID) + fmt.Sprintf(`
-resource "appleads_ad_group" "test" {
-  campaign_id               = appleads_campaign.parent.id
+resource "apple_ads_ad_group" "test" {
+  campaign_id               = apple_ads_campaign.parent.id
   name                      = "%[1]s-create"
   status                    = "PAUSED"
   default_bid_amount        = "1.00"
@@ -42,17 +42,17 @@ resource "appleads_ad_group" "test" {
 }
 `, namePrefix),
 				Check: resource.ComposeAggregateTestCheckFunc(
-					resource.TestCheckResourceAttrSet("appleads_ad_group.test", "id"),
-					resource.TestCheckResourceAttr("appleads_ad_group.test", "name", namePrefix+"-create"),
-					resource.TestCheckResourceAttr("appleads_ad_group.test", "status", "PAUSED"),
-					resource.TestCheckResourceAttr("appleads_ad_group.test", "default_bid_amount", "1.00"),
-					resource.TestCheckResourceAttrPair("appleads_ad_group.test", "campaign_id", "appleads_campaign.parent", "id"),
+					resource.TestCheckResourceAttrSet("apple_ads_ad_group.test", "id"),
+					resource.TestCheckResourceAttr("apple_ads_ad_group.test", "name", namePrefix+"-create"),
+					resource.TestCheckResourceAttr("apple_ads_ad_group.test", "status", "PAUSED"),
+					resource.TestCheckResourceAttr("apple_ads_ad_group.test", "default_bid_amount", "1.00"),
+					resource.TestCheckResourceAttrPair("apple_ads_ad_group.test", "campaign_id", "apple_ads_campaign.parent", "id"),
 				),
 			},
 			{
 				Config: testAccProviderConfig(true) + testAccCampaignPausedConfig("parent", adamID) + fmt.Sprintf(`
-resource "appleads_ad_group" "test" {
-  campaign_id               = appleads_campaign.parent.id
+resource "apple_ads_ad_group" "test" {
+  campaign_id               = apple_ads_campaign.parent.id
   name                      = "%[1]s-updated"
   status                    = "PAUSED"
   default_bid_amount        = "1.50"
@@ -61,17 +61,17 @@ resource "appleads_ad_group" "test" {
 }
 `, namePrefix),
 				Check: resource.ComposeAggregateTestCheckFunc(
-					resource.TestCheckResourceAttr("appleads_ad_group.test", "name", namePrefix+"-updated"),
-					resource.TestCheckResourceAttr("appleads_ad_group.test", "default_bid_amount", "1.50"),
-					resource.TestCheckResourceAttr("appleads_ad_group.test", "automated_keywords_opt_in", "true"),
+					resource.TestCheckResourceAttr("apple_ads_ad_group.test", "name", namePrefix+"-updated"),
+					resource.TestCheckResourceAttr("apple_ads_ad_group.test", "default_bid_amount", "1.50"),
+					resource.TestCheckResourceAttr("apple_ads_ad_group.test", "automated_keywords_opt_in", "true"),
 				),
 			},
 			{
-				ResourceName:      "appleads_ad_group.test",
+				ResourceName:      "apple_ads_ad_group.test",
 				ImportState:       true,
 				ImportStateVerify: true,
 				ImportStateIdFunc: func(s *terraform.State) (string, error) {
-					rs := s.RootModule().Resources["appleads_ad_group.test"]
+					rs := s.RootModule().Resources["apple_ads_ad_group.test"]
 					return rs.Primary.Attributes["campaign_id"] + "/" + rs.Primary.ID, nil
 				},
 			},
@@ -94,8 +94,8 @@ func TestAccAdGroupResource_ImmutableCampaignIDRejected(t *testing.T) {
 		Steps: []resource.TestStep{
 			{
 				Config: testAccProviderConfig(true) + testAccCampaignPausedConfig("a", adamID) + testAccCampaignPausedConfig("b", adamID) + `
-resource "appleads_ad_group" "immutable" {
-  campaign_id          = appleads_campaign.a.id
+resource "apple_ads_ad_group" "immutable" {
+  campaign_id          = apple_ads_campaign.a.id
   name                 = "tf-acc-adgroup-immutable"
   status               = "PAUSED"
   default_bid_amount   = "1.00"
@@ -103,9 +103,9 @@ resource "appleads_ad_group" "immutable" {
 }
 `,
 				Check: resource.ComposeAggregateTestCheckFunc(
-					resource.TestCheckResourceAttrSet("appleads_ad_group.immutable", "id"),
+					resource.TestCheckResourceAttrSet("apple_ads_ad_group.immutable", "id"),
 					func(s *terraform.State) error {
-						rs := s.RootModule().Resources["appleads_ad_group.immutable"]
+						rs := s.RootModule().Resources["apple_ads_ad_group.immutable"]
 						originalID = rs.Primary.ID
 						return nil
 					},
@@ -113,8 +113,8 @@ resource "appleads_ad_group" "immutable" {
 			},
 			{
 				Config: testAccProviderConfig(true) + testAccCampaignPausedConfig("a", adamID) + testAccCampaignPausedConfig("b", adamID) + `
-resource "appleads_ad_group" "immutable" {
-  campaign_id          = appleads_campaign.b.id
+resource "apple_ads_ad_group" "immutable" {
+  campaign_id          = apple_ads_campaign.b.id
   name                 = "tf-acc-adgroup-immutable"
   status               = "PAUSED"
   default_bid_amount   = "1.00"
@@ -125,8 +125,8 @@ resource "appleads_ad_group" "immutable" {
 			},
 			{
 				Config: testAccProviderConfig(true) + testAccCampaignPausedConfig("a", adamID) + testAccCampaignPausedConfig("b", adamID) + `
-resource "appleads_ad_group" "immutable" {
-  campaign_id          = appleads_campaign.a.id
+resource "apple_ads_ad_group" "immutable" {
+  campaign_id          = apple_ads_campaign.a.id
   name                 = "tf-acc-adgroup-immutable"
   status               = "PAUSED"
   default_bid_amount   = "1.00"
@@ -135,7 +135,7 @@ resource "appleads_ad_group" "immutable" {
 `,
 				Check: resource.ComposeAggregateTestCheckFunc(
 					func(s *terraform.State) error {
-						rs := s.RootModule().Resources["appleads_ad_group.immutable"]
+						rs := s.RootModule().Resources["apple_ads_ad_group.immutable"]
 						if rs.Primary.ID != originalID {
 							return fmt.Errorf("ad group id changed from %s to %s (replacement occurred)", originalID, rs.Primary.ID)
 						}
@@ -168,7 +168,7 @@ resource "appleads_ad_group" "immutable" {
 
 func testAccCampaignPausedConfig(name, adamID string) string {
 	return fmt.Sprintf(`
-resource "appleads_campaign" "%[1]s" {
+resource "apple_ads_campaign" "%[1]s" {
   name                  = "tf-acc-parent-%[1]s"
   adam_id               = "%[2]s"
   countries_or_regions  = ["US"]
@@ -185,7 +185,7 @@ func testAccCheckAdGroupDestroy(s *terraform.State) error {
 		return err
 	}
 	for _, rs := range s.RootModule().Resources {
-		if rs.Type != "appleads_ad_group" {
+		if rs.Type != "apple_ads_ad_group" {
 			continue
 		}
 		campaignID, err := strconv.ParseInt(rs.Primary.Attributes["campaign_id"], 10, 64)
