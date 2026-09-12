@@ -1,0 +1,57 @@
+# Live read-only tests against Apple Ads.
+#
+# Credentials live in the appleads-integration GitHub Environment, not repository
+# secrets, and this workflow is never triggered by pull_request or
+# pull_request_target. Untrusted PRs must not obtain APPLEADS_* values.
+#
+# Do not add write-capable (API Account Manager) credentials to this environment.
+# Destructive Terraform acceptance tests belong in a separate, explicitly
+# dispatched workflow once that certificate exists.
+name: Apple Ads Live Integration Tests
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 12 * * 1'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: appleads-live-integration
+  cancel-in-progress: false
+
+jobs:
+  integration:
+    name: Live integration
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: appleads-integration
+    env:
+      APPLEADS_LIVE_TEST: '1'
+      APPLEADS_CLIENT_ID: ${{ secrets.APPLEADS_CLIENT_ID }}
+      APPLEADS_TEAM_ID: ${{ secrets.APPLEADS_TEAM_ID }}
+      APPLEADS_KEY_ID: ${{ secrets.APPLEADS_KEY_ID }}
+      APPLEADS_ORG_ID: ${{ secrets.APPLEADS_ORG_ID }}
+      APPLEADS_PRIVATE_KEY: ${{ secrets.APPLEADS_PRIVATE_KEY }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: 'go.mod'
+          cache: true
+      - name: Verify Apple Ads secrets are configured
+        shell: bash
+        run: |
+          missing=
+          for k in APPLEADS_CLIENT_ID APPLEADS_TEAM_ID APPLEADS_KEY_ID APPLEADS_ORG_ID APPLEADS_PRIVATE_KEY; do
+            if [ -z "${!k}" ]; then
+              missing="$missing $k"
+            fi
+          done
+          if [ -n "$missing" ]; then
+            echo "Missing appleads-integration environment secrets:$missing"
+            exit 1
+          fi
+      - name: Run live Apple Ads tests
+        run: go test -p 1 -v -timeout 15m ./internal/client ./internal/provider -run 'TestLive|TestAcc'
