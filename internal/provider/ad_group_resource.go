@@ -34,7 +34,7 @@ type adGroupResource struct {
 	client *client.Client
 }
 
-// adGroupModel maps appleads_ad_group.
+// adGroupModel maps apple_ads_ad_group.
 //
 // Immutable: campaign_id (no RequiresReplace — Update errors instead).
 // Mutable: name, status, default_bid_amount, cpa_goal_amount, automated_keywords_opt_in, end_time.
@@ -73,7 +73,7 @@ func (r *adGroupResource) Schema(ctx context.Context, req resource.SchemaRequest
 			},
 			"campaign_id": schema.StringAttribute{
 				Required:            true,
-				MarkdownDescription: "Parent campaign id (immutable). Changing this after create returns an error; create a new appleads_ad_group instead.",
+				MarkdownDescription: "Parent campaign id (immutable). Changing this after create returns an error; create a new apple_ads_ad_group instead.",
 			},
 			"name": schema.StringAttribute{
 				Required:            true,
@@ -238,7 +238,7 @@ func (r *adGroupResource) Update(ctx context.Context, req resource.UpdateRequest
 			fmt.Sprintf(
 				"Apple Ads does not allow moving ad group %s between campaigns. "+
 					"Automatically replacing this resource would delete historical ad group identity. "+
-					"Create a new appleads_ad_group explicitly instead.",
+					"Create a new apple_ads_ad_group explicitly instead.",
 				state.ID.ValueString(),
 			),
 		)

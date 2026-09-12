@@ -1,4 +1,4 @@
-provider "appleads" {
+provider "apple_ads" {
   org_id      = var.apple_ads_org_id
   client_id   = var.apple_ads_client_id
   team_id     = var.apple_ads_team_id
@@ -16,4 +16,4 @@ provider "appleads" {
 #   APPLEADS_KEY_ID
 #   APPLEADS_PRIVATE_KEY
 #
-# provider "appleads" {}
+# provider "apple_ads" {}
