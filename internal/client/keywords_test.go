@@ -70,7 +70,10 @@ func TestCreateKeyword_MoneyNoFloat(t *testing.T) {
 		if err := json.NewDecoder(r.Body).Decode(&raw); err != nil {
 			t.Fatal(err)
 		}
-		bid := raw[0]["bidAmount"].(map[string]any)
+		bid, ok := raw[0]["bidAmount"].(map[string]any)
+		if !ok {
+			t.Fatalf("bidAmount = %#v", raw[0]["bidAmount"])
+		}
 		if bid["amount"] != "0.99" {
 			t.Fatalf("amount = %#v", bid["amount"])
 		}
