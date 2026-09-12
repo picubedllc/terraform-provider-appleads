@@ -21,7 +21,7 @@ import (
 // CLI command executed to create a provider server to which the CLI can
 // reattach.
 var testAccProtoV6ProviderFactories = map[string]func() (tfprotov6.ProviderServer, error){
-	"apple_ads": providerserver.NewProtocol6WithError(New("test")()),
+	"apple-ads": providerserver.NewProtocol6WithError(New("test")()),
 }
 
 func testAccPreCheck(t *testing.T) {
@@ -43,7 +43,7 @@ func testAccProviderConfig(allowDeletion bool) string {
 		allow = "true"
 	}
 	return `
-provider "apple_ads" {
+provider "apple-ads" {
   allow_campaign_deletion = ` + allow + `
 }
 `

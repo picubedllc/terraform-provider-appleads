@@ -2,8 +2,8 @@
 # text and match_type are immutable — changing them returns an error instead of
 # replacing the resource (which would destroy keyword-level performance history).
 
-resource "apple_ads_keyword" "exact" {
-  ad_group_id  = apple_ads_ad_group.main.id
+resource "apple-ads_keyword" "exact" {
+  ad_group_id  = apple-ads_ad_group.main.id
   text         = "screenshot organizer"
   match_type   = "EXACT"
   status       = "PAUSED"
@@ -11,8 +11,8 @@ resource "apple_ads_keyword" "exact" {
   bid_currency = "USD"
 }
 
-resource "apple_ads_keyword" "broad" {
-  ad_group_id  = apple_ads_ad_group.main.id
+resource "apple-ads_keyword" "broad" {
+  ad_group_id  = apple-ads_ad_group.main.id
   text         = "screenshot app"
   match_type   = "BROAD"
   status       = "PAUSED"
