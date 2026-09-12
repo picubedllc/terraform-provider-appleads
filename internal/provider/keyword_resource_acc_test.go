@@ -31,8 +31,8 @@ func TestAccKeywordResource_Lifecycle(t *testing.T) {
 		Steps: []resource.TestStep{
 			{
 				Config: testAccProviderConfig(true) + testAccCampaignPausedConfig("parent", adamID) + testAccAdGroupPausedConfig() + `
-resource "appleads_keyword" "test" {
-  ad_group_id  = appleads_ad_group.ag.id
+resource "apple_ads_keyword" "test" {
+  ad_group_id  = apple_ads_ad_group.ag.id
   text         = "tf acc keyword create"
   match_type   = "EXACT"
   status       = "PAUSED"
@@ -41,19 +41,19 @@ resource "appleads_keyword" "test" {
 }
 `,
 				Check: resource.ComposeAggregateTestCheckFunc(
-					resource.TestCheckResourceAttrSet("appleads_keyword.test", "id"),
-					resource.TestCheckResourceAttrSet("appleads_keyword.test", "campaign_id"),
-					resource.TestCheckResourceAttr("appleads_keyword.test", "text", "tf acc keyword create"),
-					resource.TestCheckResourceAttr("appleads_keyword.test", "match_type", "EXACT"),
-					resource.TestCheckResourceAttr("appleads_keyword.test", "status", "PAUSED"),
-					resource.TestCheckResourceAttr("appleads_keyword.test", "bid_amount", "1.00"),
-					resource.TestCheckResourceAttrPair("appleads_keyword.test", "ad_group_id", "appleads_ad_group.ag", "id"),
+					resource.TestCheckResourceAttrSet("apple_ads_keyword.test", "id"),
+					resource.TestCheckResourceAttrSet("apple_ads_keyword.test", "campaign_id"),
+					resource.TestCheckResourceAttr("apple_ads_keyword.test", "text", "tf acc keyword create"),
+					resource.TestCheckResourceAttr("apple_ads_keyword.test", "match_type", "EXACT"),
+					resource.TestCheckResourceAttr("apple_ads_keyword.test", "status", "PAUSED"),
+					resource.TestCheckResourceAttr("apple_ads_keyword.test", "bid_amount", "1.00"),
+					resource.TestCheckResourceAttrPair("apple_ads_keyword.test", "ad_group_id", "apple_ads_ad_group.ag", "id"),
 				),
 			},
 			{
 				Config: testAccProviderConfig(true) + testAccCampaignPausedConfig("parent", adamID) + testAccAdGroupPausedConfig() + `
-resource "appleads_keyword" "test" {
-  ad_group_id  = appleads_ad_group.ag.id
+resource "apple_ads_keyword" "test" {
+  ad_group_id  = apple_ads_ad_group.ag.id
   text         = "tf acc keyword create"
   match_type   = "EXACT"
   status       = "PAUSED"
@@ -62,15 +62,15 @@ resource "appleads_keyword" "test" {
 }
 `,
 				Check: resource.ComposeAggregateTestCheckFunc(
-					resource.TestCheckResourceAttr("appleads_keyword.test", "bid_amount", "1.50"),
+					resource.TestCheckResourceAttr("apple_ads_keyword.test", "bid_amount", "1.50"),
 				),
 			},
 			{
-				ResourceName:      "appleads_keyword.test",
+				ResourceName:      "apple_ads_keyword.test",
 				ImportState:       true,
 				ImportStateVerify: true,
 				ImportStateIdFunc: func(s *terraform.State) (string, error) {
-					rs := s.RootModule().Resources["appleads_keyword.test"]
+					rs := s.RootModule().Resources["apple_ads_keyword.test"]
 					return rs.Primary.Attributes["campaign_id"] + "/" +
 						rs.Primary.Attributes["ad_group_id"] + "/" +
 						rs.Primary.ID, nil
@@ -95,8 +95,8 @@ func TestAccKeywordResource_ImmutableTextRejected(t *testing.T) {
 		Steps: []resource.TestStep{
 			{
 				Config: testAccProviderConfig(true) + testAccCampaignPausedConfig("parent", adamID) + testAccAdGroupPausedConfig() + `
-resource "appleads_keyword" "immutable" {
-  ad_group_id  = appleads_ad_group.ag.id
+resource "apple_ads_keyword" "immutable" {
+  ad_group_id  = apple_ads_ad_group.ag.id
   text         = "tf acc keyword immutable"
   match_type   = "BROAD"
   status       = "PAUSED"
@@ -105,17 +105,17 @@ resource "appleads_keyword" "immutable" {
 }
 `,
 				Check: resource.ComposeAggregateTestCheckFunc(
-					resource.TestCheckResourceAttrSet("appleads_keyword.immutable", "id"),
+					resource.TestCheckResourceAttrSet("apple_ads_keyword.immutable", "id"),
 					func(s *terraform.State) error {
-						originalID = s.RootModule().Resources["appleads_keyword.immutable"].Primary.ID
+						originalID = s.RootModule().Resources["apple_ads_keyword.immutable"].Primary.ID
 						return nil
 					},
 				),
 			},
 			{
 				Config: testAccProviderConfig(true) + testAccCampaignPausedConfig("parent", adamID) + testAccAdGroupPausedConfig() + `
-resource "appleads_keyword" "immutable" {
-  ad_group_id  = appleads_ad_group.ag.id
+resource "apple_ads_keyword" "immutable" {
+  ad_group_id  = apple_ads_ad_group.ag.id
   text         = "tf acc keyword changed"
   match_type   = "BROAD"
   status       = "PAUSED"
@@ -127,8 +127,8 @@ resource "appleads_keyword" "immutable" {
 			},
 			{
 				Config: testAccProviderConfig(true) + testAccCampaignPausedConfig("parent", adamID) + testAccAdGroupPausedConfig() + `
-resource "appleads_keyword" "immutable" {
-  ad_group_id  = appleads_ad_group.ag.id
+resource "apple_ads_keyword" "immutable" {
+  ad_group_id  = apple_ads_ad_group.ag.id
   text         = "tf acc keyword immutable"
   match_type   = "BROAD"
   status       = "PAUSED"
@@ -138,7 +138,7 @@ resource "appleads_keyword" "immutable" {
 `,
 				Check: resource.ComposeAggregateTestCheckFunc(
 					func(s *terraform.State) error {
-						rs := s.RootModule().Resources["appleads_keyword.immutable"]
+						rs := s.RootModule().Resources["apple_ads_keyword.immutable"]
 						if rs.Primary.ID != originalID {
 							return fmt.Errorf("keyword id changed from %s to %s", originalID, rs.Primary.ID)
 						}
@@ -152,8 +152,8 @@ resource "appleads_keyword" "immutable" {
 
 func testAccAdGroupPausedConfig() string {
 	return `
-resource "appleads_ad_group" "ag" {
-  campaign_id               = appleads_campaign.parent.id
+resource "apple_ads_ad_group" "ag" {
+  campaign_id               = apple_ads_campaign.parent.id
   name                      = "tf-acc-ag-ag"
   status                    = "PAUSED"
   default_bid_amount        = "1.00"
@@ -169,7 +169,7 @@ func testAccCheckKeywordDestroy(s *terraform.State) error {
 		return err
 	}
 	for _, rs := range s.RootModule().Resources {
-		if rs.Type != "appleads_keyword" {
+		if rs.Type != "apple_ads_keyword" {
 			continue
 		}
 		campaignID, err := strconv.ParseInt(rs.Primary.Attributes["campaign_id"], 10, 64)
