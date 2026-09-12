@@ -55,7 +55,7 @@ type ProviderData struct {
 }
 
 func (p *AppleAdsProvider) Metadata(ctx context.Context, req provider.MetadataRequest, resp *provider.MetadataResponse) {
-	resp.TypeName = "appleads"
+	resp.TypeName = "apple-ads"
 	resp.Version = p.version
 }
 
@@ -182,7 +182,9 @@ func requireCredential(attrName, value, envName string) diag.Diagnostics {
 }
 
 func (p *AppleAdsProvider) Resources(ctx context.Context) []func() resource.Resource {
-	return nil
+	return []func() resource.Resource{
+		NewCampaignResource,
+	}
 }
 
 func (p *AppleAdsProvider) DataSources(ctx context.Context) []func() datasource.DataSource {

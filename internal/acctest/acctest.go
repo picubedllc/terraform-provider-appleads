@@ -122,6 +122,97 @@ func RequireOrgAccess(t *testing.T, acls []UserACL, orgID string) {
 	t.Fatalf("APPLEADS_ORG_ID %q was not in the authenticated ACL list", orgID)
 }
 
+// LiveClient builds the same authenticated, retrying Apple Ads client the provider uses.
+func LiveClient(t *testing.T) (*client.Client, client.Credentials) {
+	t.Helper()
+	creds := Credentials(t)
+
+	src, err := client.NewOAuthTokenSource(client.OAuthConfig{Credentials: creds})
+	if err != nil {
+		t.Fatalf("NewOAuthTokenSource: %v", err)
+	}
+
+	httpClient := client.WithRetry(
+		client.NewAuthenticatedHTTPClient(src, creds.OrgID, nil),
+		client.RetryConfig{},
+	)
+	c, err := client.New(client.WithHTTPClient(httpClient))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return c, creds
+}
+
+// RequireCampaignsPage fetches one page of campaigns (read-only).
+// Org-wide listing is temporary; campaign allowlisting is tracked in PI-31.
+func RequireCampaignsPage(t *testing.T, c *client.Client) *client.PageResult[client.Campaign] {
+	t.Helper()
+
+	ctx, cancel := context.WithTimeout(t.Context(), 90*time.Second)
+	defer cancel()
+
+	deadline := time.Now().Add(45 * time.Second)
+	var last error
+	for attempt := 1; ; attempt++ {
+		page, err := client.FetchPage[client.Campaign](ctx, c, http.MethodGet, "/campaigns", client.PageParams{Limit: 1}, nil)
+		if err == nil {
+			if page == nil {
+				t.Fatal("GET /campaigns returned nil page")
+			}
+			return page
+		}
+		last = err
+		if time.Now().After(deadline) {
+			if isTransientAPIError(err) {
+				t.Skipf("Apple Ads API unavailable after retries; last error: %v", err)
+			}
+			t.Fatalf("GET /campaigns: %v", err)
+		}
+		if !isTransientAPIError(err) {
+			t.Fatalf("GET /campaigns: %v", err)
+		}
+		t.Logf("GET /campaigns attempt %d transient error, retrying", attempt)
+		select {
+		case <-ctx.Done():
+			t.Fatalf("GET /campaigns: %v", last)
+		case <-time.After(2 * time.Second):
+		}
+	}
+}
+
+// RequireSearchApps calls GET /search/apps with transient retries.
+func RequireSearchApps(t *testing.T, c *client.Client, query string, ownedOnly bool) []client.App {
+	t.Helper()
+
+	ctx, cancel := context.WithTimeout(t.Context(), 90*time.Second)
+	defer cancel()
+
+	deadline := time.Now().Add(45 * time.Second)
+	var last error
+	for attempt := 1; ; attempt++ {
+		apps, err := c.SearchApps(ctx, query, ownedOnly, 5)
+		if err == nil {
+			return apps
+		}
+		last = err
+		if time.Now().After(deadline) {
+			if isTransientAPIError(err) {
+				t.Skipf("Apple Ads API unavailable after retries; last error: %v", err)
+			}
+			t.Fatalf("SearchApps(%q): %v", query, err)
+		}
+		if !isTransientAPIError(err) {
+			t.Fatalf("SearchApps(%q): %v", query, err)
+		}
+		t.Logf("SearchApps attempt %d transient error, retrying", attempt)
+		select {
+		case <-ctx.Done():
+			t.Fatalf("SearchApps(%q): %v", query, last)
+		case <-time.After(2 * time.Second):
+		}
+	}
+}
+
 func isTransientAPIError(err error) bool {
 	var apiErr *client.APIError
 	if !errors.As(err, &apiErr) {

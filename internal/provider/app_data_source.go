@@ -103,7 +103,7 @@ func (d *appDataSource) Read(ctx context.Context, req datasource.ReadRequest, re
 		return
 	}
 	if d.client == nil {
-		resp.Diagnostics.AddError("Client not configured", "The provider client was not configured before reading appleads_app.")
+		resp.Diagnostics.AddError("Client not configured", "The provider client was not configured before reading apple-ads_app.")
 		return
 	}
 
