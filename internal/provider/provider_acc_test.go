@@ -4,14 +4,50 @@
 package provider
 
 import (
+	"os"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-framework/provider"
+	"github.com/hashicorp/terraform-plugin-framework/providerserver"
 	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
+	"github.com/hashicorp/terraform-plugin-go/tfprotov6"
 	"github.com/hashicorp/terraform-plugin-go/tftypes"
 
 	"github.com/picubedllc/terraform-provider-appleads/internal/acctest"
 )
+
+// testAccProtoV6ProviderFactories are used to instantiate a provider during
+// acceptance testing. The factory function will be invoked for every Terraform
+// CLI command executed to create a provider server to which the CLI can
+// reattach.
+var testAccProtoV6ProviderFactories = map[string]func() (tfprotov6.ProviderServer, error){
+	"apple-ads": providerserver.NewProtocol6WithError(New("test")()),
+}
+
+func testAccPreCheck(t *testing.T) {
+	t.Helper()
+	acctest.PreCheck(t)
+	required := []string{
+		"APPLEADS_TEST_ADAM_ID",
+	}
+	for _, k := range required {
+		if os.Getenv(k) == "" {
+			t.Fatalf("%s must be set for campaign acceptance tests", k)
+		}
+	}
+}
+
+func testAccProviderConfig(allowDeletion bool) string {
+	allow := "false"
+	if allowDeletion {
+		allow = "true"
+	}
+	return `
+provider "apple-ads" {
+  allow_campaign_deletion = ` + allow + `
+}
+`
+}
 
 func TestAccProvider_ConfigureFromEnvAndReadACL(t *testing.T) {
 	acctest.PreCheck(t)
