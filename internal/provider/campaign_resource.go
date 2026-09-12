@@ -246,10 +246,50 @@ func (r *campaignResource) Create(ctx context.Context, req resource.CreateReques
 }
 
 func (r *campaignResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
-	resp.Diagnostics.AddError(
-		"Campaign Read not implemented",
-		"appleads_campaign Read is implemented in PI-11.",
-	)
+	var state campaignModel
+	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	if r.client == nil {
+		resp.Diagnostics.AddError("Client not configured", "The provider client was not configured before reading appleads_campaign.")
+		return
+	}
+
+	id, err := client.ParseCampaignID(state.ID.ValueString())
+	if err != nil {
+		resp.Diagnostics.AddError("Invalid campaign id in state", err.Error())
+		return
+	}
+
+	// Soft-delete handling (Apple Ads Campaign Management API v5):
+	// DELETE /campaigns/{id} is a soft delete — GET /campaigns/{id} continues to
+	// return the campaign object with deleted=true rather than HTTP 404.
+	// Default list/find endpoints omit deleted campaigns, so a missing list hit
+	// must NOT be treated as deletion. We always GET by id and trust the
+	// deleted boolean (or a true 404) before removing from Terraform state.
+	// Verified against Apple Ads Campaign API "Delete a Campaign" / "Get a Campaign"
+	// behavior and covered by TestCampaignResource_ReadSoftDeletedRemovesState.
+	got, err := r.client.GetCampaign(ctx, id)
+	if err != nil {
+		if client.IsNotFound(err) {
+			resp.State.RemoveResource(ctx)
+			return
+		}
+		resp.Diagnostics.Append(apiErrorDiagnostic("Unable to read Apple Ads campaign", err)...)
+		return
+	}
+	if got.Deleted {
+		resp.State.RemoveResource(ctx)
+		return
+	}
+
+	newState, diags := campaignModelFromClient(ctx, got)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	resp.Diagnostics.Append(resp.State.Set(ctx, &newState)...)
 }
 
 func (r *campaignResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
