@@ -14,7 +14,7 @@ Archived campaigns lose practical identity for reporting continuity and historic
 
 This provider refuses campaign destroy/archive operations unless you explicitly opt in:
 
-  provider "appleads" {
+  provider "apple_ads" {
     allow_campaign_deletion = true
   }
 
@@ -22,7 +22,7 @@ Set allow_campaign_deletion = true only when intentional archival is required.`
 
 // CampaignDeletionBlockedDiagnostics returns the provider-level guardrail diagnostic
 // used when Delete is attempted while allow_campaign_deletion is false.
-// Enforcement in the appleads_campaign Delete lifecycle lands in Project 2.
+// Enforcement in the apple_ads_campaign Delete lifecycle lands in Project 2.
 func CampaignDeletionBlockedDiagnostics() diag.Diagnostics {
 	var diags diag.Diagnostics
 	diags.AddError(campaignDeletionBlockedSummary, campaignDeletionBlockedDetail)
