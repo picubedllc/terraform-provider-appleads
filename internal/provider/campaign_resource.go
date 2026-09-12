@@ -293,10 +293,49 @@ func (r *campaignResource) Read(ctx context.Context, req resource.ReadRequest, r
 }
 
 func (r *campaignResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
-	resp.Diagnostics.AddError(
-		"Campaign Update not implemented",
-		"apple-ads_campaign Update is implemented in PI-12.",
-	)
+	var state, plan campaignModel
+	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
+	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	if r.client == nil {
+		resp.Diagnostics.AddError("Client not configured", "The provider client was not configured before updating apple-ads_campaign.")
+		return
+	}
+
+	// Prefer failing the entire apply when any immutable field changes — even if
+	// mutable fields are also present — so users never observe a partially-applied
+	// update mixed with a blocked identity change.
+	if changes := detectImmutableCampaignChanges(ctx, state, plan); len(changes) > 0 {
+		resp.Diagnostics.Append(immutableCampaignChangeDiagnostics(state.ID.ValueString(), changes)...)
+		return
+	}
+
+	id, err := client.ParseCampaignID(state.ID.ValueString())
+	if err != nil {
+		resp.Diagnostics.AddError("Invalid campaign id in state", err.Error())
+		return
+	}
+
+	upd, diags := campaignUpdateFromPlan(ctx, plan)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	updated, err := r.client.UpdateCampaign(ctx, id, upd)
+	if err != nil {
+		resp.Diagnostics.Append(apiErrorDiagnostic("Unable to update Apple Ads campaign", err)...)
+		return
+	}
+
+	newState, diags := campaignModelFromClient(ctx, updated)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	resp.Diagnostics.Append(resp.State.Set(ctx, &newState)...)
 }
 
 func (r *campaignResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
