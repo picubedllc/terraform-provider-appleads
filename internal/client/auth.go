@@ -219,6 +219,8 @@ func (s *OAuthTokenSource) clientAssertion() (string, error) {
 }
 
 func parseECPrivateKey(pemData string) (*ecdsa.PrivateKey, error) {
+	// Env vars often store PEM with literal \n sequences instead of real newlines.
+	pemData = strings.ReplaceAll(strings.TrimSpace(pemData), `\n`, "\n")
 	block, _ := pem.Decode([]byte(pemData))
 	if block == nil {
 		return nil, fmt.Errorf("no PEM block found")
