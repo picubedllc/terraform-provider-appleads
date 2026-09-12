@@ -351,7 +351,7 @@ func (r *campaignResource) Delete(ctx context.Context, req resource.DeleteReques
 		return
 	}
 	if r.client == nil {
-		resp.Diagnostics.AddError("Client not configured", "The provider client was not configured before deleting appleads_campaign.")
+		resp.Diagnostics.AddError("Client not configured", "The provider client was not configured before deleting apple_ads_campaign.")
 		return
 	}
 
