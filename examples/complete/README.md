@@ -2,7 +2,7 @@
 
 End-to-end sample for managing an Apple Ads search campaign with this provider:
 
-1. Resolve an App Store app via `data.appleads_app`
+1. Resolve an App Store app via `data.apple_ads_app`
 2. Create a paused campaign with a daily budget
 3. Create an ad group with Search Match enabled
 4. Add EXACT and BROAD targeting keywords

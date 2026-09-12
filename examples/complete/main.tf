@@ -5,13 +5,13 @@
 
 terraform {
   required_providers {
-    appleads = {
+    apple_ads = {
       source = "picubedllc/appleads"
     }
   }
 }
 
-provider "appleads" {
+provider "apple_ads" {
   # Prefer APPLEADS_* env vars locally. keep allow_campaign_deletion=false
   # so provider-level archival stays blocked even if prevent_destroy is removed.
   allow_campaign_deletion = false
@@ -23,13 +23,13 @@ variable "app_name" {
   default     = "Example Screenshot Organizer"
 }
 
-data "appleads_app" "app" {
+data "apple_ads_app" "app" {
   name = var.app_name
 }
 
-resource "appleads_campaign" "search" {
+resource "apple_ads_campaign" "search" {
   name                  = "Search — Screenshot Organizer (example)"
-  adam_id               = data.appleads_app.app.adam_id
+  adam_id               = data.apple_ads_app.app.adam_id
   countries_or_regions  = ["US"]
   status                = "PAUSED"
   daily_budget_amount   = "25.00"
@@ -43,8 +43,8 @@ resource "appleads_campaign" "search" {
   }
 }
 
-resource "appleads_ad_group" "core" {
-  campaign_id               = appleads_campaign.search.id
+resource "apple_ads_ad_group" "core" {
+  campaign_id               = apple_ads_campaign.search.id
   name                      = "Core terms"
   status                    = "PAUSED"
   default_bid_amount        = "1.25"
@@ -52,8 +52,8 @@ resource "appleads_ad_group" "core" {
   automated_keywords_opt_in = true
 }
 
-resource "appleads_keyword" "exact_primary" {
-  ad_group_id  = appleads_ad_group.core.id
+resource "apple_ads_keyword" "exact_primary" {
+  ad_group_id  = apple_ads_ad_group.core.id
   text         = "screenshot organizer"
   match_type   = "EXACT"
   status       = "PAUSED"
@@ -61,8 +61,8 @@ resource "appleads_keyword" "exact_primary" {
   bid_currency = "USD"
 }
 
-resource "appleads_keyword" "exact_secondary" {
-  ad_group_id  = appleads_ad_group.core.id
+resource "apple_ads_keyword" "exact_secondary" {
+  ad_group_id  = apple_ads_ad_group.core.id
   text         = "screenshot manager"
   match_type   = "EXACT"
   status       = "PAUSED"
@@ -70,8 +70,8 @@ resource "appleads_keyword" "exact_secondary" {
   bid_currency = "USD"
 }
 
-resource "appleads_keyword" "broad_discovery" {
-  ad_group_id  = appleads_ad_group.core.id
+resource "apple_ads_keyword" "broad_discovery" {
+  ad_group_id  = apple_ads_ad_group.core.id
   text         = "organize screenshots"
   match_type   = "BROAD"
   status       = "PAUSED"
@@ -79,28 +79,28 @@ resource "appleads_keyword" "broad_discovery" {
   bid_currency = "USD"
 }
 
-resource "appleads_negative_keyword" "campaign_free" {
-  campaign_id = appleads_campaign.search.id
+resource "apple_ads_negative_keyword" "campaign_free" {
+  campaign_id = apple_ads_campaign.search.id
   text        = "free"
   match_type  = "EXACT"
   status      = "ACTIVE"
 }
 
-resource "appleads_negative_keyword" "adgroup_cheap" {
-  ad_group_id = appleads_ad_group.core.id
+resource "apple_ads_negative_keyword" "adgroup_cheap" {
+  ad_group_id = apple_ads_ad_group.core.id
   text        = "cheap"
   match_type  = "BROAD"
   status      = "ACTIVE"
 }
 
 output "campaign_id" {
-  value = appleads_campaign.search.id
+  value = apple_ads_campaign.search.id
 }
 
 output "ad_group_id" {
-  value = appleads_ad_group.core.id
+  value = apple_ads_ad_group.core.id
 }
 
 output "adam_id" {
-  value = data.appleads_app.app.adam_id
+  value = data.apple_ads_app.app.adam_id
 }
