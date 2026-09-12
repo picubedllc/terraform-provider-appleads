@@ -186,7 +186,9 @@ func (p *AppleAdsProvider) Resources(ctx context.Context) []func() resource.Reso
 }
 
 func (p *AppleAdsProvider) DataSources(ctx context.Context) []func() datasource.DataSource {
-	return nil
+	return []func() datasource.DataSource{
+		NewAppDataSource,
+	}
 }
 
 func New(version string) func() provider.Provider {
