@@ -34,7 +34,7 @@ type negativeKeywordResource struct {
 	client *client.Client
 }
 
-// negativeKeywordModel maps appleads_negative_keyword.
+// negativeKeywordModel maps apple_ads_negative_keyword.
 //
 // Exactly one of campaign_id or ad_group_id must be set in configuration
 // (Ivan/PI-18 decision: single resource type for both scopes).
@@ -220,7 +220,7 @@ func (r *negativeKeywordResource) Update(ctx context.Context, req resource.Updat
 		if !plan.CampaignID.IsUnknown() {
 			resp.Diagnostics.AddError(
 				`Cannot change immutable negative keyword field "campaign_id"`,
-				fmt.Sprintf("Negative keyword %s cannot change campaign scope in place. Create a new appleads_negative_keyword instead.", state.ID.ValueString()),
+				fmt.Sprintf("Negative keyword %s cannot change campaign scope in place. Create a new apple_ads_negative_keyword instead.", state.ID.ValueString()),
 			)
 			return
 		}
@@ -229,7 +229,7 @@ func (r *negativeKeywordResource) Update(ctx context.Context, req resource.Updat
 		if !plan.AdGroupID.IsUnknown() {
 			resp.Diagnostics.AddError(
 				`Cannot change immutable negative keyword field "ad_group_id"`,
-				fmt.Sprintf("Negative keyword %s cannot change ad group scope in place. Create a new appleads_negative_keyword instead.", state.ID.ValueString()),
+				fmt.Sprintf("Negative keyword %s cannot change ad group scope in place. Create a new apple_ads_negative_keyword instead.", state.ID.ValueString()),
 			)
 			return
 		}
@@ -237,14 +237,14 @@ func (r *negativeKeywordResource) Update(ctx context.Context, req resource.Updat
 	if state.Text.ValueString() != plan.Text.ValueString() {
 		resp.Diagnostics.AddError(
 			`Cannot change immutable negative keyword field "text"`,
-			fmt.Sprintf("Apple Ads does not allow changing negative keyword text in place for %s. Create a new appleads_negative_keyword instead.", state.ID.ValueString()),
+			fmt.Sprintf("Apple Ads does not allow changing negative keyword text in place for %s. Create a new apple_ads_negative_keyword instead.", state.ID.ValueString()),
 		)
 		return
 	}
 	if state.MatchType.ValueString() != plan.MatchType.ValueString() {
 		resp.Diagnostics.AddError(
 			`Cannot change immutable negative keyword field "match_type"`,
-			fmt.Sprintf("Apple Ads does not allow changing match_type in place for negative keyword %s. Create a new appleads_negative_keyword instead.", state.ID.ValueString()),
+			fmt.Sprintf("Apple Ads does not allow changing match_type in place for negative keyword %s. Create a new apple_ads_negative_keyword instead.", state.ID.ValueString()),
 		)
 		return
 	}
