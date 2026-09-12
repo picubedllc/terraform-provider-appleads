@@ -45,7 +45,7 @@ func immutableCampaignChangeDiagnostics(campaignID string, changes []immutableCa
 				"Apple Ads does not allow changing %s on an existing campaign. "+
 					"Automatically replacing this Terraform resource would permanently archive campaign %s "+
 					"and create a new campaign with a new historical identity. "+
-					"Create a new apple_ads_campaign resource explicitly instead.",
+					"Create a new apple-ads_campaign resource explicitly instead.",
 				ch.Field, campaignID,
 			),
 		)
