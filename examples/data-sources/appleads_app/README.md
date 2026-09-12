@@ -4,7 +4,7 @@ Resolve an App Store app to its Adam ID for use with Apple Ads campaigns.
 
 ```hcl
 data "appleads_app" "example" {
-  name = "Screenbase"
+  name = "OrbitNote"
 }
 ```
 

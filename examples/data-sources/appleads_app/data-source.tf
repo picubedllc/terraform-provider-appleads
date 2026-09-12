@@ -1,5 +1,5 @@
 data "appleads_app" "example" {
-  name = "Screenbase"
+  name = "OrbitNote"
 }
 
 output "adam_id" {

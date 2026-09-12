@@ -14,12 +14,21 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/providerserver"
 	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
+	"github.com/hashicorp/terraform-plugin-go/tfprotov6"
 	"github.com/hashicorp/terraform-plugin-go/tftypes"
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
-	"github.com/hashicorp/terraform-plugin-go/tfprotov6"
 
 	"github.com/picubedllc/terraform-provider-appleads/internal/client"
 )
+
+func mustAppDataSource(t *testing.T) *appDataSource {
+	t.Helper()
+	ds, ok := NewAppDataSource().(*appDataSource)
+	if !ok {
+		t.Fatalf("expected *appDataSource, got %T", NewAppDataSource())
+	}
+	return ds
+}
 
 func TestAppDataSource_UnitReadByName(t *testing.T) {
 	t.Parallel()
@@ -27,7 +36,7 @@ func TestAppDataSource_UnitReadByName(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_ = json.NewEncoder(w).Encode(map[string]any{
 			"data": []map[string]any{
-				{"adamId": 111, "appName": "Screenbase", "developerName": "Pi Cubed", "countryOrRegion": "US"},
+				{"adamId": 111, "appName": "OrbitNote", "developerName": "Northwind Labs", "countryOrRegion": "US"},
 			},
 		})
 	}))
@@ -38,7 +47,7 @@ func TestAppDataSource_UnitReadByName(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ds := NewAppDataSource().(*appDataSource)
+	ds := mustAppDataSource(t)
 	ds.client = apiClient
 
 	ctx := context.Background()
@@ -49,18 +58,18 @@ func TestAppDataSource_UnitReadByName(t *testing.T) {
 		Schema: schemaResp.Schema,
 		Raw: tftypes.NewValue(tftypes.Object{
 			AttributeTypes: map[string]tftypes.Type{
-				"name":               tftypes.String,
-				"id":                 tftypes.String,
-				"adam_id":            tftypes.String,
-				"developer_name":     tftypes.String,
-				"country_or_region":  tftypes.String,
+				"name":              tftypes.String,
+				"id":                tftypes.String,
+				"adam_id":           tftypes.String,
+				"developer_name":    tftypes.String,
+				"country_or_region": tftypes.String,
 			},
 		}, map[string]tftypes.Value{
-			"name":               tftypes.NewValue(tftypes.String, "Screenbase"),
-			"id":                 tftypes.NewValue(tftypes.String, nil),
-			"adam_id":            tftypes.NewValue(tftypes.String, nil),
-			"developer_name":     tftypes.NewValue(tftypes.String, nil),
-			"country_or_region":  tftypes.NewValue(tftypes.String, nil),
+			"name":              tftypes.NewValue(tftypes.String, "OrbitNote"),
+			"id":                tftypes.NewValue(tftypes.String, nil),
+			"adam_id":           tftypes.NewValue(tftypes.String, nil),
+			"developer_name":    tftypes.NewValue(tftypes.String, nil),
+			"country_or_region": tftypes.NewValue(tftypes.String, nil),
 		}),
 	}
 
@@ -95,7 +104,7 @@ func TestAppDataSource_UnitReadByName(t *testing.T) {
 	if state.ID.ValueString() != "111" || state.AdamID.ValueString() != "111" {
 		t.Fatalf("state = %#v", state)
 	}
-	if state.Name.ValueString() != "Screenbase" || state.DeveloperName.ValueString() != "Pi Cubed" {
+	if state.Name.ValueString() != "OrbitNote" || state.DeveloperName.ValueString() != "Northwind Labs" {
 		t.Fatalf("state = %#v", state)
 	}
 	if state.CountryOrRegion.ValueString() != "US" {
@@ -116,7 +125,7 @@ func TestAppDataSource_UnitNotFound(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ds := NewAppDataSource().(*appDataSource)
+	ds := mustAppDataSource(t)
 	ds.client = apiClient
 
 	ctx := context.Background()
@@ -173,7 +182,7 @@ func TestAppDataSource_UnitMultipleMatches(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ds := NewAppDataSource().(*appDataSource)
+	ds := mustAppDataSource(t)
 	ds.client = apiClient
 
 	ctx := context.Background()

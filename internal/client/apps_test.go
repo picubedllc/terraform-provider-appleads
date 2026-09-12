@@ -19,7 +19,7 @@ func TestSearchApps(t *testing.T) {
 		if r.URL.Path != "/search/apps" {
 			t.Fatalf("path = %s", r.URL.Path)
 		}
-		if got := r.URL.Query().Get("query"); got != "Screenbase" {
+		if got := r.URL.Query().Get("query"); got != "OrbitNote" {
 			t.Fatalf("query = %q", got)
 		}
 		if got := r.URL.Query().Get("returnOwnedApps"); got != "true" {
@@ -27,7 +27,7 @@ func TestSearchApps(t *testing.T) {
 		}
 		_ = json.NewEncoder(w).Encode(map[string]any{
 			"data": []map[string]any{
-				{"adamId": 123, "appName": "Screenbase", "developerName": "Pi Cubed"},
+				{"adamId": 123, "appName": "OrbitNote", "developerName": "Northwind Labs"},
 			},
 			"pagination": map[string]int{"totalResults": 1, "startIndex": 0, "itemsPerPage": 20},
 		})
@@ -38,11 +38,11 @@ func TestSearchApps(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	apps, err := c.SearchApps(context.Background(), "Screenbase", true, 20)
+	apps, err := c.SearchApps(context.Background(), "OrbitNote", true, 20)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(apps) != 1 || apps[0].AdamID != 123 || apps[0].AppName != "Screenbase" {
+	if len(apps) != 1 || apps[0].AdamID != 123 || apps[0].AppName != "OrbitNote" {
 		t.Fatalf("apps = %#v", apps)
 	}
 }
@@ -53,8 +53,8 @@ func TestFindAppByName_ExactMatch(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_ = json.NewEncoder(w).Encode(map[string]any{
 			"data": []map[string]any{
-				{"adamId": 1, "appName": "Screenbase", "developerName": "A"},
-				{"adamId": 2, "appName": "Screenbase Pro", "developerName": "A"},
+				{"adamId": 1, "appName": "OrbitNote", "developerName": "A"},
+				{"adamId": 2, "appName": "OrbitNote Pro", "developerName": "A"},
 			},
 		})
 	}))
@@ -64,7 +64,7 @@ func TestFindAppByName_ExactMatch(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	app, err := c.FindAppByName(context.Background(), "Screenbase")
+	app, err := c.FindAppByName(context.Background(), "OrbitNote")
 	if err != nil {
 		t.Fatal(err)
 	}
