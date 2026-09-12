@@ -300,7 +300,7 @@ func (r *campaignResource) Update(ctx context.Context, req resource.UpdateReques
 		return
 	}
 	if r.client == nil {
-		resp.Diagnostics.AddError("Client not configured", "The provider client was not configured before updating apple_ads_campaign.")
+		resp.Diagnostics.AddError("Client not configured", "The provider client was not configured before updating apple-ads_campaign.")
 		return
 	}
 
