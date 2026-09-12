@@ -188,3 +188,25 @@ func TestOAuthTokenExchangeAndCache(t *testing.T) {
 		t.Fatalf("exchanges = %d, want 2 after proactive refresh", exchanges.Load())
 	}
 }
+
+func TestNewOAuthTokenSource_EscapedPEMNewlines(t *testing.T) {
+	t.Parallel()
+
+	pemKey := testECPrivateKeyPEM(t)
+	escaped := strings.ReplaceAll(pemKey, "\n", `\n`)
+	if escaped == pemKey {
+		t.Fatal("expected escaped PEM to differ from original")
+	}
+
+	_, err := client.NewOAuthTokenSource(client.OAuthConfig{
+		Credentials: client.Credentials{
+			ClientID:   "SEARCHADS.client",
+			TeamID:     "SEARCHADS.team",
+			KeyID:      "key-123",
+			PrivateKey: escaped,
+		},
+	})
+	if err != nil {
+		t.Fatalf("parse escaped PEM: %v", err)
+	}
+}
