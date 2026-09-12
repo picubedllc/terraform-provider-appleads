@@ -30,63 +30,63 @@ func TestAccNegativeKeywordResource_CampaignAndAdGroup(t *testing.T) {
 		Steps: []resource.TestStep{
 			{
 				Config: testAccProviderConfig(true) + testAccCampaignPausedConfig("parent", adamID) + testAccAdGroupPausedConfig() + `
-resource "apple_ads_negative_keyword" "campaign" {
-  campaign_id = apple_ads_campaign.parent.id
+resource "apple-ads_negative_keyword" "campaign" {
+  campaign_id = apple-ads_campaign.parent.id
   text        = "tf acc free"
   match_type  = "EXACT"
   status      = "PAUSED"
 }
 
-resource "apple_ads_negative_keyword" "adgroup" {
-  ad_group_id = apple_ads_ad_group.ag.id
+resource "apple-ads_negative_keyword" "adgroup" {
+  ad_group_id = apple-ads_ad_group.ag.id
   text        = "tf acc cheap"
   match_type  = "BROAD"
   status      = "PAUSED"
 }
 `,
 				Check: resource.ComposeAggregateTestCheckFunc(
-					resource.TestCheckResourceAttrSet("apple_ads_negative_keyword.campaign", "id"),
-					resource.TestCheckResourceAttr("apple_ads_negative_keyword.campaign", "text", "tf acc free"),
-					resource.TestCheckResourceAttrSet("apple_ads_negative_keyword.adgroup", "id"),
-					resource.TestCheckResourceAttrSet("apple_ads_negative_keyword.adgroup", "campaign_id"),
-					resource.TestCheckResourceAttrPair("apple_ads_negative_keyword.adgroup", "ad_group_id", "apple_ads_ad_group.ag", "id"),
+					resource.TestCheckResourceAttrSet("apple-ads_negative_keyword.campaign", "id"),
+					resource.TestCheckResourceAttr("apple-ads_negative_keyword.campaign", "text", "tf acc free"),
+					resource.TestCheckResourceAttrSet("apple-ads_negative_keyword.adgroup", "id"),
+					resource.TestCheckResourceAttrSet("apple-ads_negative_keyword.adgroup", "campaign_id"),
+					resource.TestCheckResourceAttrPair("apple-ads_negative_keyword.adgroup", "ad_group_id", "apple-ads_ad_group.ag", "id"),
 				),
 			},
 			{
 				Config: testAccProviderConfig(true) + testAccCampaignPausedConfig("parent", adamID) + testAccAdGroupPausedConfig() + `
-resource "apple_ads_negative_keyword" "campaign" {
-  campaign_id = apple_ads_campaign.parent.id
+resource "apple-ads_negative_keyword" "campaign" {
+  campaign_id = apple-ads_campaign.parent.id
   text        = "tf acc free"
   match_type  = "EXACT"
   status      = "ACTIVE"
 }
 
-resource "apple_ads_negative_keyword" "adgroup" {
-  ad_group_id = apple_ads_ad_group.ag.id
+resource "apple-ads_negative_keyword" "adgroup" {
+  ad_group_id = apple-ads_ad_group.ag.id
   text        = "tf acc cheap"
   match_type  = "BROAD"
   status      = "PAUSED"
 }
 `,
 				Check: resource.ComposeAggregateTestCheckFunc(
-					resource.TestCheckResourceAttr("apple_ads_negative_keyword.campaign", "status", "ACTIVE"),
+					resource.TestCheckResourceAttr("apple-ads_negative_keyword.campaign", "status", "ACTIVE"),
 				),
 			},
 			{
-				ResourceName:      "apple_ads_negative_keyword.campaign",
+				ResourceName:      "apple-ads_negative_keyword.campaign",
 				ImportState:       true,
 				ImportStateVerify: true,
 				ImportStateIdFunc: func(s *terraform.State) (string, error) {
-					rs := s.RootModule().Resources["apple_ads_negative_keyword.campaign"]
+					rs := s.RootModule().Resources["apple-ads_negative_keyword.campaign"]
 					return "campaign/" + rs.Primary.Attributes["campaign_id"] + "/" + rs.Primary.ID, nil
 				},
 			},
 			{
-				ResourceName:      "apple_ads_negative_keyword.adgroup",
+				ResourceName:      "apple-ads_negative_keyword.adgroup",
 				ImportState:       true,
 				ImportStateVerify: true,
 				ImportStateIdFunc: func(s *terraform.State) (string, error) {
-					rs := s.RootModule().Resources["apple_ads_negative_keyword.adgroup"]
+					rs := s.RootModule().Resources["apple-ads_negative_keyword.adgroup"]
 					return "adgroup/" + rs.Primary.Attributes["campaign_id"] + "/" +
 						rs.Primary.Attributes["ad_group_id"] + "/" + rs.Primary.ID, nil
 				},
@@ -108,8 +108,8 @@ func TestAccNegativeKeywordResource_ImmutableTextRejected(t *testing.T) {
 		Steps: []resource.TestStep{
 			{
 				Config: testAccProviderConfig(true) + testAccCampaignPausedConfig("parent", adamID) + `
-resource "apple_ads_negative_keyword" "immutable" {
-  campaign_id = apple_ads_campaign.parent.id
+resource "apple-ads_negative_keyword" "immutable" {
+  campaign_id = apple-ads_campaign.parent.id
   text        = "tf acc nk immutable"
   match_type  = "EXACT"
   status      = "PAUSED"
@@ -118,8 +118,8 @@ resource "apple_ads_negative_keyword" "immutable" {
 			},
 			{
 				Config: testAccProviderConfig(true) + testAccCampaignPausedConfig("parent", adamID) + `
-resource "apple_ads_negative_keyword" "immutable" {
-  campaign_id = apple_ads_campaign.parent.id
+resource "apple-ads_negative_keyword" "immutable" {
+  campaign_id = apple-ads_campaign.parent.id
   text        = "tf acc nk changed"
   match_type  = "EXACT"
   status      = "PAUSED"
@@ -137,7 +137,7 @@ func testAccCheckNegativeKeywordDestroy(s *terraform.State) error {
 		return err
 	}
 	for _, rs := range s.RootModule().Resources {
-		if rs.Type != "apple_ads_negative_keyword" {
+		if rs.Type != "apple-ads_negative_keyword" {
 			continue
 		}
 		campaignID, err := strconv.ParseInt(rs.Primary.Attributes["campaign_id"], 10, 64)
