@@ -374,7 +374,7 @@ func (r *campaignResource) Delete(ctx context.Context, req resource.DeleteReques
 
 func (r *campaignResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
 	if r.client == nil {
-		resp.Diagnostics.AddError("Client not configured", "The provider client was not configured before importing appleads_campaign.")
+		resp.Diagnostics.AddError("Client not configured", "The provider client was not configured before importing apple_ads_campaign.")
 		return
 	}
 
