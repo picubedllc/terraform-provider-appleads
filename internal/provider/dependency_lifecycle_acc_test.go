@@ -33,21 +33,21 @@ func TestAccDependencyLifecycle_FullHierarchy(t *testing.T) {
 	var campaignID, adGroupID string
 
 	fullConfig := testAccProviderConfig(true) + fmt.Sprintf(`
-data "apple_ads_app" "app" {
+data "apple-ads_app" "app" {
   id = "%[1]s"
 }
 
-resource "apple_ads_campaign" "hierarchy" {
+resource "apple-ads_campaign" "hierarchy" {
   name                  = "tf-acc-hierarchy"
-  adam_id               = data.apple_ads_app.app.adam_id
+  adam_id               = data.apple-ads_app.app.adam_id
   countries_or_regions  = ["US"]
   status                = "PAUSED"
   daily_budget_amount   = "1.00"
   daily_budget_currency = "USD"
 }
 
-resource "apple_ads_ad_group" "hierarchy" {
-  campaign_id               = apple_ads_campaign.hierarchy.id
+resource "apple-ads_ad_group" "hierarchy" {
+  campaign_id               = apple-ads_campaign.hierarchy.id
   name                      = "tf-acc-hierarchy-ag"
   status                    = "PAUSED"
   default_bid_amount        = "1.00"
@@ -55,8 +55,8 @@ resource "apple_ads_ad_group" "hierarchy" {
   automated_keywords_opt_in = false
 }
 
-resource "apple_ads_keyword" "exact" {
-  ad_group_id  = apple_ads_ad_group.hierarchy.id
+resource "apple-ads_keyword" "exact" {
+  ad_group_id  = apple-ads_ad_group.hierarchy.id
   text         = "tf acc hierarchy exact"
   match_type   = "EXACT"
   status       = "PAUSED"
@@ -64,8 +64,8 @@ resource "apple_ads_keyword" "exact" {
   bid_currency = "USD"
 }
 
-resource "apple_ads_keyword" "broad" {
-  ad_group_id  = apple_ads_ad_group.hierarchy.id
+resource "apple-ads_keyword" "broad" {
+  ad_group_id  = apple-ads_ad_group.hierarchy.id
   text         = "tf acc hierarchy broad"
   match_type   = "BROAD"
   status       = "PAUSED"
@@ -73,15 +73,15 @@ resource "apple_ads_keyword" "broad" {
   bid_currency = "USD"
 }
 
-resource "apple_ads_negative_keyword" "campaign" {
-  campaign_id = apple_ads_campaign.hierarchy.id
+resource "apple-ads_negative_keyword" "campaign" {
+  campaign_id = apple-ads_campaign.hierarchy.id
   text        = "tf acc hierarchy free"
   match_type  = "EXACT"
   status      = "PAUSED"
 }
 
-resource "apple_ads_negative_keyword" "adgroup" {
-  ad_group_id = apple_ads_ad_group.hierarchy.id
+resource "apple-ads_negative_keyword" "adgroup" {
+  ad_group_id = apple-ads_ad_group.hierarchy.id
   text        = "tf acc hierarchy cheap"
   match_type  = "BROAD"
   status      = "PAUSED"
@@ -89,13 +89,13 @@ resource "apple_ads_negative_keyword" "adgroup" {
 `, adamID)
 
 	campaignOnlyConfig := testAccProviderConfig(true) + fmt.Sprintf(`
-data "apple_ads_app" "app" {
+data "apple-ads_app" "app" {
   id = "%[1]s"
 }
 
-resource "apple_ads_campaign" "hierarchy" {
+resource "apple-ads_campaign" "hierarchy" {
   name                  = "tf-acc-hierarchy"
-  adam_id               = data.apple_ads_app.app.adam_id
+  adam_id               = data.apple-ads_app.app.adam_id
   countries_or_regions  = ["US"]
   status                = "PAUSED"
   daily_budget_amount   = "1.00"
@@ -110,21 +110,21 @@ resource "apple_ads_campaign" "hierarchy" {
 			{
 				Config: fullConfig,
 				Check: resource.ComposeAggregateTestCheckFunc(
-					resource.TestCheckResourceAttrSet("data.apple_ads_app.app", "adam_id"),
-					resource.TestCheckResourceAttrSet("apple_ads_campaign.hierarchy", "id"),
-					resource.TestCheckResourceAttrSet("apple_ads_ad_group.hierarchy", "id"),
-					resource.TestCheckResourceAttrSet("apple_ads_keyword.exact", "id"),
-					resource.TestCheckResourceAttrSet("apple_ads_keyword.broad", "id"),
-					resource.TestCheckResourceAttrSet("apple_ads_negative_keyword.campaign", "id"),
-					resource.TestCheckResourceAttrSet("apple_ads_negative_keyword.adgroup", "id"),
-					resource.TestCheckResourceAttrPair("apple_ads_ad_group.hierarchy", "campaign_id", "apple_ads_campaign.hierarchy", "id"),
-					resource.TestCheckResourceAttrPair("apple_ads_keyword.exact", "ad_group_id", "apple_ads_ad_group.hierarchy", "id"),
-					resource.TestCheckResourceAttrPair("apple_ads_keyword.exact", "campaign_id", "apple_ads_campaign.hierarchy", "id"),
-					resource.TestCheckResourceAttrPair("apple_ads_negative_keyword.campaign", "campaign_id", "apple_ads_campaign.hierarchy", "id"),
-					resource.TestCheckResourceAttrPair("apple_ads_negative_keyword.adgroup", "ad_group_id", "apple_ads_ad_group.hierarchy", "id"),
+					resource.TestCheckResourceAttrSet("data.apple-ads_app.app", "adam_id"),
+					resource.TestCheckResourceAttrSet("apple-ads_campaign.hierarchy", "id"),
+					resource.TestCheckResourceAttrSet("apple-ads_ad_group.hierarchy", "id"),
+					resource.TestCheckResourceAttrSet("apple-ads_keyword.exact", "id"),
+					resource.TestCheckResourceAttrSet("apple-ads_keyword.broad", "id"),
+					resource.TestCheckResourceAttrSet("apple-ads_negative_keyword.campaign", "id"),
+					resource.TestCheckResourceAttrSet("apple-ads_negative_keyword.adgroup", "id"),
+					resource.TestCheckResourceAttrPair("apple-ads_ad_group.hierarchy", "campaign_id", "apple-ads_campaign.hierarchy", "id"),
+					resource.TestCheckResourceAttrPair("apple-ads_keyword.exact", "ad_group_id", "apple-ads_ad_group.hierarchy", "id"),
+					resource.TestCheckResourceAttrPair("apple-ads_keyword.exact", "campaign_id", "apple-ads_campaign.hierarchy", "id"),
+					resource.TestCheckResourceAttrPair("apple-ads_negative_keyword.campaign", "campaign_id", "apple-ads_campaign.hierarchy", "id"),
+					resource.TestCheckResourceAttrPair("apple-ads_negative_keyword.adgroup", "ad_group_id", "apple-ads_ad_group.hierarchy", "id"),
 					func(s *terraform.State) error {
-						campaignID = s.RootModule().Resources["apple_ads_campaign.hierarchy"].Primary.ID
-						adGroupID = s.RootModule().Resources["apple_ads_ad_group.hierarchy"].Primary.ID
+						campaignID = s.RootModule().Resources["apple-ads_campaign.hierarchy"].Primary.ID
+						adGroupID = s.RootModule().Resources["apple-ads_ad_group.hierarchy"].Primary.ID
 						return nil
 					},
 				),
@@ -135,7 +135,7 @@ resource "apple_ads_campaign" "hierarchy" {
 				Config: campaignOnlyConfig,
 				Check: resource.ComposeAggregateTestCheckFunc(
 					func(s *terraform.State) error {
-						rs := s.RootModule().Resources["apple_ads_campaign.hierarchy"]
+						rs := s.RootModule().Resources["apple-ads_campaign.hierarchy"]
 						if rs.Primary.ID != campaignID {
 							return fmt.Errorf("campaign id changed from %s to %s after nested destroy", campaignID, rs.Primary.ID)
 						}
