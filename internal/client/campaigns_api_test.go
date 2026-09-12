@@ -106,7 +106,10 @@ func TestCreateCampaign_MoneyRoundTripNoFloat(t *testing.T) {
 		if err := json.NewDecoder(r.Body).Decode(&raw); err != nil {
 			t.Fatal(err)
 		}
-		daily := raw["dailyBudgetAmount"].(map[string]any)
+		daily, ok := raw["dailyBudgetAmount"].(map[string]any)
+		if !ok {
+			t.Fatalf("dailyBudgetAmount = %#v", raw["dailyBudgetAmount"])
+		}
 		if daily["amount"] != "12.34" {
 			t.Fatalf("amount = %#v (float noise?)", daily["amount"])
 		}
