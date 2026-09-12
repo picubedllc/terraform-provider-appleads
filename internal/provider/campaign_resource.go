@@ -339,8 +339,32 @@ func (r *campaignResource) Update(ctx context.Context, req resource.UpdateReques
 }
 
 func (r *campaignResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
-	resp.Diagnostics.AddError(
-		"Campaign Delete not implemented",
-		"apple-ads_campaign Delete is implemented in PI-13.",
-	)
+	var state campaignModel
+	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	// Archive guardrail: refuse before any Apple Ads call when not opted in.
+	if !r.allowCampaignDeletion {
+		resp.Diagnostics.Append(CampaignDeletionBlockedDiagnostics()...)
+		return
+	}
+	if r.client == nil {
+		resp.Diagnostics.AddError("Client not configured", "The provider client was not configured before deleting apple-ads_campaign.")
+		return
+	}
+
+	id, err := client.ParseCampaignID(state.ID.ValueString())
+	if err != nil {
+		resp.Diagnostics.AddError("Invalid campaign id in state", err.Error())
+		return
+	}
+
+	// Apple Ads DELETE archives (soft-deletes) the campaign. Only remove from
+	// Terraform state after Apple confirms success.
+	if err := r.client.DeleteCampaign(ctx, id); err != nil {
+		resp.Diagnostics.Append(apiErrorDiagnostic("Unable to archive Apple Ads campaign", err)...)
+		return
+	}
 }
