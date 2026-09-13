@@ -1,9 +1,9 @@
-# apple-ads_app
+# appleads_app
 
 Resolve an App Store app to its Adam ID for use with Apple Ads campaigns.
 
 ```hcl
-data "apple-ads_app" "example" {
+data "appleads_app" "example" {
   name = "OrbitNote"
 }
 ```
@@ -11,7 +11,7 @@ data "apple-ads_app" "example" {
 Or look up by Adam ID:
 
 ```hcl
-data "apple-ads_app" "example" {
+data "appleads_app" "example" {
   id = "1234567890"
 }
 ```
