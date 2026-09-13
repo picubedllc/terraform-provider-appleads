@@ -7,6 +7,9 @@
 # Do not add write-capable (API Account Manager) credentials to this environment.
 # Destructive Terraform acceptance tests belong in a separate, explicitly
 # dispatched workflow once that certificate exists.
+#
+# Do not store GPG_PRIVATE_KEY or PASSPHRASE here. Release signing uses the
+# separate `release` GitHub Environment.
 name: Apple Ads Live Integration Tests
 
 on:

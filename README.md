@@ -34,6 +34,8 @@ Pull request CI runs unit tests, vet, lint, and docs generation only. It never r
 
 Live integration tests run from the `Apple Ads Live Integration Tests` workflow (`workflow_dispatch` or weekly). Credentials are GitHub Environment secrets on `appleads-integration`, not repository secrets, and that workflow is not triggered by pull requests.
 
+Provider releases are signed GitHub Releases from a `vMAJOR.MINOR.PATCH` tag. See [docs/RELEASING.md](docs/RELEASING.md).
+
 Local live tests (`make testlive`) require:
 
 ```
