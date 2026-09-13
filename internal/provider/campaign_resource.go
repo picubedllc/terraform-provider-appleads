@@ -219,7 +219,7 @@ func (r *campaignResource) Create(ctx context.Context, req resource.CreateReques
 		return
 	}
 	if r.client == nil {
-		resp.Diagnostics.AddError("Client not configured", "The provider client was not configured before creating apple-ads_campaign.")
+		resp.Diagnostics.AddError("Client not configured", "The provider client was not configured before creating appleads_campaign.")
 		return
 	}
 
