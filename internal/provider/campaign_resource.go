@@ -24,7 +24,10 @@ import (
 // moneyAmountRegexp validates decimal money strings without float conversion.
 var moneyAmountRegexp = regexp.MustCompile(`^(?:0|[1-9]\d*)(?:\.\d+)?$`)
 
-var _ resource.Resource = &campaignResource{}
+var (
+	_ resource.Resource                = &campaignResource{}
+	_ resource.ResourceWithImportState = &campaignResource{}
+)
 
 func NewCampaignResource() resource.Resource {
 	return &campaignResource{}
@@ -246,22 +249,162 @@ func (r *campaignResource) Create(ctx context.Context, req resource.CreateReques
 }
 
 func (r *campaignResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
-	resp.Diagnostics.AddError(
-		"Campaign Read not implemented",
-		"appleads_campaign Read is implemented in PI-11.",
-	)
+	var state campaignModel
+	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	if r.client == nil {
+		resp.Diagnostics.AddError("Client not configured", "The provider client was not configured before reading appleads_campaign.")
+		return
+	}
+
+	id, err := client.ParseCampaignID(state.ID.ValueString())
+	if err != nil {
+		resp.Diagnostics.AddError("Invalid campaign id in state", err.Error())
+		return
+	}
+
+	// Soft-delete handling (Apple Ads Campaign Management API v5):
+	// DELETE /campaigns/{id} is a soft delete — GET /campaigns/{id} continues to
+	// return the campaign object with deleted=true rather than HTTP 404.
+	// Default list/find endpoints omit deleted campaigns, so a missing list hit
+	// must NOT be treated as deletion. We always GET by id and trust the
+	// deleted boolean (or a true 404) before removing from Terraform state.
+	// Verified against Apple Ads Campaign API "Delete a Campaign" / "Get a Campaign"
+	// behavior and covered by TestCampaignResource_ReadSoftDeletedRemovesState.
+	got, err := r.client.GetCampaign(ctx, id)
+	if err != nil {
+		if client.IsNotFound(err) {
+			resp.State.RemoveResource(ctx)
+			return
+		}
+		resp.Diagnostics.Append(apiErrorDiagnostic("Unable to read Apple Ads campaign", err)...)
+		return
+	}
+	if got.Deleted {
+		resp.State.RemoveResource(ctx)
+		return
+	}
+
+	newState, diags := campaignModelFromClient(ctx, got)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	resp.Diagnostics.Append(resp.State.Set(ctx, &newState)...)
 }
 
 func (r *campaignResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
-	resp.Diagnostics.AddError(
-		"Campaign Update not implemented",
-		"appleads_campaign Update is implemented in PI-12.",
-	)
+	var state, plan campaignModel
+	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
+	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	if r.client == nil {
+		resp.Diagnostics.AddError("Client not configured", "The provider client was not configured before updating appleads_campaign.")
+		return
+	}
+
+	// Prefer failing the entire apply when any immutable field changes — even if
+	// mutable fields are also present — so users never observe a partially-applied
+	// update mixed with a blocked identity change.
+	if changes := detectImmutableCampaignChanges(ctx, state, plan); len(changes) > 0 {
+		resp.Diagnostics.Append(immutableCampaignChangeDiagnostics(state.ID.ValueString(), changes)...)
+		return
+	}
+
+	id, err := client.ParseCampaignID(state.ID.ValueString())
+	if err != nil {
+		resp.Diagnostics.AddError("Invalid campaign id in state", err.Error())
+		return
+	}
+
+	upd, diags := campaignUpdateFromPlan(ctx, plan)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	updated, err := r.client.UpdateCampaign(ctx, id, upd)
+	if err != nil {
+		resp.Diagnostics.Append(apiErrorDiagnostic("Unable to update Apple Ads campaign", err)...)
+		return
+	}
+
+	newState, diags := campaignModelFromClient(ctx, updated)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	resp.Diagnostics.Append(resp.State.Set(ctx, &newState)...)
 }
 
 func (r *campaignResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
-	resp.Diagnostics.AddError(
-		"Campaign Delete not implemented",
-		"appleads_campaign Delete is implemented in PI-13.",
-	)
+	var state campaignModel
+	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	// Archive guardrail: refuse before any Apple Ads call when not opted in.
+	if !r.allowCampaignDeletion {
+		resp.Diagnostics.Append(CampaignDeletionBlockedDiagnostics()...)
+		return
+	}
+	if r.client == nil {
+		resp.Diagnostics.AddError("Client not configured", "The provider client was not configured before deleting appleads_campaign.")
+		return
+	}
+
+	id, err := client.ParseCampaignID(state.ID.ValueString())
+	if err != nil {
+		resp.Diagnostics.AddError("Invalid campaign id in state", err.Error())
+		return
+	}
+
+	// Apple Ads DELETE archives (soft-deletes) the campaign. Only remove from
+	// Terraform state after Apple confirms success.
+	if err := r.client.DeleteCampaign(ctx, id); err != nil {
+		resp.Diagnostics.Append(apiErrorDiagnostic("Unable to archive Apple Ads campaign", err)...)
+		return
+	}
+}
+
+func (r *campaignResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
+	if r.client == nil {
+		resp.Diagnostics.AddError("Client not configured", "The provider client was not configured before importing appleads_campaign.")
+		return
+	}
+
+	id, err := client.ParseCampaignID(req.ID)
+	if err != nil {
+		resp.Diagnostics.AddError("Invalid import id", "Expected a numeric Apple Ads campaign id.")
+		return
+	}
+
+	got, err := r.client.GetCampaign(ctx, id)
+	if err != nil {
+		if client.IsNotFound(err) {
+			resp.Diagnostics.AddError("Campaign not found", fmt.Sprintf("No Apple Ads campaign found with id %s.", req.ID))
+			return
+		}
+		resp.Diagnostics.Append(apiErrorDiagnostic("Unable to import Apple Ads campaign", err)...)
+		return
+	}
+	if got.Deleted {
+		resp.Diagnostics.AddError(
+			"Cannot import archived campaign",
+			fmt.Sprintf("Campaign %s is archived (deleted=true) in Apple Ads and cannot be imported as a managed resource.", req.ID),
+		)
+		return
+	}
+
+	state, diags := campaignModelFromClient(ctx, got)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }
