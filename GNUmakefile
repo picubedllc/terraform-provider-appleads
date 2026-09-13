@@ -26,4 +26,9 @@ testlive:
 testacc:
 	TF_ACC=1 APPLEADS_LIVE_TEST=1 go test -v -cover -timeout 120m ./...
 
-.PHONY: fmt lint test testlive testacc build install generate
+# Unsigned local/CI dry-run of Registry zip naming. Does not publish or sign.
+release-snapshot:
+	go run github.com/goreleaser/goreleaser/v2@v2.12.7 release --snapshot --clean --skip=sign
+	./scripts/verify-release-artifacts.sh
+
+.PHONY: fmt lint test testlive testacc build install generate release-snapshot

@@ -1,5 +1,9 @@
-# Visit https://goreleaser.com for documentation on how to customize this
-# behavior.
+# Terraform Registry release artifacts for picubedllc/appleads.
+# https://developer.hashicorp.com/terraform/registry/providers/publishing
+#
+# Archives: terraform-provider-appleads_{version}_{os}_{arch}.zip
+# Binary inside each zip: terraform-provider-appleads_v{version}
+# Checksums + detached GPG signature are produced at release time (PI-25).
 version: 2
 before:
   hooks:
