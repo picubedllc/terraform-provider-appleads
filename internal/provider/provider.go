@@ -184,6 +184,7 @@ func requireCredential(attrName, value, envName string) diag.Diagnostics {
 func (p *AppleAdsProvider) Resources(ctx context.Context) []func() resource.Resource {
 	return []func() resource.Resource{
 		NewCampaignResource,
+		NewAdGroupResource,
 	}
 }
 
