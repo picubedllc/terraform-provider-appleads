@@ -170,13 +170,20 @@ func campaignModelFromClient(ctx context.Context, c *client.Campaign) (campaignM
 		m.DailyBudgetCurrency = types.StringNull()
 	}
 
-	orderStrs := make([]string, 0, len(c.BudgetOrders))
-	for _, id := range c.BudgetOrders {
-		orderStrs = append(orderStrs, strconv.FormatInt(id, 10))
+	if len(c.BudgetOrders) == 0 {
+		// Optional and not Computed: an omitted config is null. Apple returns
+		// [] for that case; mapping it to an empty list makes Terraform reject
+		// the apply ("was null, but now cty.ListValEmpty").
+		m.BudgetOrders = types.ListNull(types.StringType)
+	} else {
+		orderStrs := make([]string, 0, len(c.BudgetOrders))
+		for _, id := range c.BudgetOrders {
+			orderStrs = append(orderStrs, strconv.FormatInt(id, 10))
+		}
+		orders, d := types.ListValueFrom(ctx, types.StringType, orderStrs)
+		diags.Append(d...)
+		m.BudgetOrders = orders
 	}
-	orders, d := types.ListValueFrom(ctx, types.StringType, orderStrs)
-	diags.Append(d...)
-	m.BudgetOrders = orders
 
 	return m, diags
 }
@@ -221,6 +228,9 @@ func apiErrorDiagnostic(summary string, err error) diag.Diagnostics {
 	var apiErr *client.APIError
 	if errors.As(err, &apiErr) {
 		detail := apiErr.Message
+		if apiErr.StatusCode != 0 {
+			detail = fmt.Sprintf("HTTP %d: %s", apiErr.StatusCode, detail)
+		}
 		if apiErr.Code != "" {
 			detail = apiErr.Code + ": " + detail
 		}
