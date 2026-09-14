@@ -137,23 +137,30 @@ func TestAdGroupCreate_AndStateFromResponse(t *testing.T) {
 func TestOverlayAdGroupMoney_KeepsConfiguredScale(t *testing.T) {
 	t.Parallel()
 
-	configured := adGroupModel{
-		DefaultBidAmount:   types.StringValue("1.00"),
-		DefaultBidCurrency: types.StringValue("USD"),
+	tests := []struct {
+		name       string
+		configured string
+		reported   string
+		want       string
+	}{
+		{name: "trailing zeros", configured: "1.00", reported: "1", want: "1.00"},
+		{name: "cents unchanged", configured: "0.58", reported: "0.58", want: "0.58"},
+		{name: "cents extra scale", configured: "0.58", reported: "0.580", want: "0.58"},
+		{name: "half dollar scale", configured: "0.50", reported: "0.5", want: "0.50"},
+		{name: "real change keeps API", configured: "0.58", reported: "0.59", want: "0.59"},
+		{name: "whole dollar change", configured: "1.00", reported: "2", want: "2"},
 	}
-	reported := adGroupModel{
-		DefaultBidAmount:   types.StringValue("1"),
-		DefaultBidCurrency: types.StringValue("USD"),
-	}
-	out := overlayAdGroupMoney(configured, reported)
-	if out.DefaultBidAmount.ValueString() != "1.00" {
-		t.Fatalf("amount = %q", out.DefaultBidAmount.ValueString())
-	}
-
-	reported.DefaultBidAmount = types.StringValue("2")
-	out = overlayAdGroupMoney(configured, reported)
-	if out.DefaultBidAmount.ValueString() != "2" {
-		t.Fatalf("changed amount should keep API value, got %q", out.DefaultBidAmount.ValueString())
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			out := overlayAdGroupMoney(
+				adGroupModel{DefaultBidAmount: types.StringValue(tt.configured), DefaultBidCurrency: types.StringValue("USD")},
+				adGroupModel{DefaultBidAmount: types.StringValue(tt.reported), DefaultBidCurrency: types.StringValue("USD")},
+			)
+			if out.DefaultBidAmount.ValueString() != tt.want {
+				t.Fatalf("amount = %q, want %q", out.DefaultBidAmount.ValueString(), tt.want)
+			}
+		})
 	}
 }
 

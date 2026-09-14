@@ -168,26 +168,36 @@ func TestKeywordCreate_APIValidationDiagnostic(t *testing.T) {
 func TestOverlayKeywordMoney_KeepsConfiguredScale(t *testing.T) {
 	t.Parallel()
 
-	configured := keywordModel{
-		BidAmount:   types.StringValue("1.50"),
-		BidCurrency: types.StringValue("USD"),
+	tests := []struct {
+		name       string
+		configured string
+		reported   string
+		want       string
+	}{
+		{name: "trailing zeros", configured: "1.50", reported: "1.5", want: "1.50"},
+		{name: "cents unchanged", configured: "0.58", reported: "0.58", want: "0.58"},
+		{name: "cents extra scale", configured: "0.58", reported: "0.580", want: "0.58"},
+		{name: "half dollar scale", configured: "0.50", reported: "0.5", want: "0.50"},
+		{name: "real change keeps API", configured: "0.58", reported: "0.59", want: "0.59"},
+		{name: "whole dollar change", configured: "1.50", reported: "2", want: "2"},
 	}
-	reported := keywordModel{
-		BidAmount:   types.StringValue("1.5"),
-		BidCurrency: types.StringValue("USD"),
-	}
-	out := overlayKeywordMoney(configured, reported)
-	if out.BidAmount.ValueString() != "1.50" {
-		t.Fatalf("amount = %q", out.BidAmount.ValueString())
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			out := overlayKeywordMoney(
+				keywordModel{BidAmount: types.StringValue(tt.configured), BidCurrency: types.StringValue("USD")},
+				keywordModel{BidAmount: types.StringValue(tt.reported), BidCurrency: types.StringValue("USD")},
+			)
+			if out.BidAmount.ValueString() != tt.want {
+				t.Fatalf("amount = %q, want %q", out.BidAmount.ValueString(), tt.want)
+			}
+		})
 	}
 
-	reported.BidAmount = types.StringValue("2")
-	out = overlayKeywordMoney(configured, reported)
-	if out.BidAmount.ValueString() != "2" {
-		t.Fatalf("changed amount should keep API value, got %q", out.BidAmount.ValueString())
-	}
-
-	omitted := overlayKeywordMoney(keywordModel{BidAmount: types.StringNull()}, reported)
+	omitted := overlayKeywordMoney(
+		keywordModel{BidAmount: types.StringNull()},
+		keywordModel{BidAmount: types.StringValue("0.58"), BidCurrency: types.StringValue("USD")},
+	)
 	if !omitted.BidAmount.IsNull() {
 		t.Fatalf("omitted bid should stay null, got %q", omitted.BidAmount.ValueString())
 	}
