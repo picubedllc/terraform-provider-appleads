@@ -179,6 +179,7 @@ func (c RetryConfig) backoff(attempt int, resp *http.Response) time.Duration {
 	return time.Duration(c.RandFloat64() * exp)
 }
 
+// logHTTPDebug logs method, redacted URL, status, and content-type when APPLEADS_HTTP_DEBUG is set.
 func logHTTPDebug(attempt int, req *http.Request, resp *http.Response, err error) {
 	if os.Getenv("APPLEADS_HTTP_DEBUG") == "" {
 		return

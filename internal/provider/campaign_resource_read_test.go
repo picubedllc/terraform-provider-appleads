@@ -122,7 +122,7 @@ func TestCampaignModelFromClient_PreservesID(t *testing.T) {
 		t.Fatalf("id = %s", m.ID.ValueString())
 	}
 	if !m.BudgetOrders.IsNull() {
-		t.Fatalf("budget_orders = %#v, want null when Apple omits/empties the list", m.BudgetOrders)
+		t.Fatalf("budget_orders = %#v, want null", m.BudgetOrders)
 	}
 	_ = types.String{}
 }

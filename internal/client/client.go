@@ -19,8 +19,6 @@ import (
 )
 
 // DefaultBaseURL is the Apple Ads Campaign Management API v5 base URL.
-// The trailing slash is required so relative paths append under /api/v5
-// instead of replacing the "v5" path segment (RFC 3986).
 const DefaultBaseURL = "https://api.searchads.apple.com/api/v5/"
 
 // TokenSource provides bearer access tokens for authenticated requests.
@@ -104,11 +102,7 @@ func New(opts ...Option) (*Client, error) {
 	return c, nil
 }
 
-// joinAPIPath appends path under base, preserving the API version prefix.
-// url.URL.ResolveReference would replace the last segment of a base like
-// https://api.searchads.apple.com/api/v5 when path is "acls", producing
-// /api/acls instead of /api/v5/acls. Apple's CDN answers that wrong host
-// path with an HTML 503.
+// joinAPIPath appends path under the API base URL.
 func joinAPIPath(base *url.URL, path string) *url.URL {
 	out := *base
 	out.RawQuery = ""

@@ -171,9 +171,6 @@ func campaignModelFromClient(ctx context.Context, c *client.Campaign) (campaignM
 	}
 
 	if len(c.BudgetOrders) == 0 {
-		// Optional and not Computed: an omitted config is null. Apple returns
-		// [] for that case; mapping it to an empty list makes Terraform reject
-		// the apply ("was null, but now cty.ListValEmpty").
 		m.BudgetOrders = types.ListNull(types.StringType)
 	} else {
 		orderStrs := make([]string, 0, len(c.BudgetOrders))
