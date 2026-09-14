@@ -69,6 +69,12 @@ func TestAdGroupCreate_AndStateFromResponse(t *testing.T) {
 		if body.DefaultBidAmount == nil || body.DefaultBidAmount.Amount != "1.50" {
 			t.Fatalf("bid = %#v", body.DefaultBidAmount)
 		}
+		if body.PricingModel != "CPC" {
+			t.Fatalf("pricingModel = %q", body.PricingModel)
+		}
+		if body.StartTime == "" {
+			t.Fatal("startTime is empty")
+		}
 		_ = json.NewEncoder(w).Encode(map[string]any{
 			"data": map[string]any{
 				"id":                     55,

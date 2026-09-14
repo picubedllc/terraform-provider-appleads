@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // AdGroup is an Apple Ads ad group (API v5).
@@ -35,6 +36,7 @@ type AdGroup struct {
 	Deleted                bool                 `json:"deleted,omitempty"`
 	TargetingDimensions    *TargetingDimensions `json:"targetingDimensions,omitempty"`
 	ServingStateReasons    []string             `json:"servingStateReasons,omitempty"`
+	PricingModel           string               `json:"pricingModel,omitempty"`
 }
 
 // TargetingDimensions holds ad group audience targeting.
@@ -74,6 +76,7 @@ type AdGroupCreate struct {
 	StartTime              string               `json:"startTime,omitempty"`
 	EndTime                string               `json:"endTime,omitempty"`
 	TargetingDimensions    *TargetingDimensions `json:"targetingDimensions,omitempty"`
+	PricingModel           string               `json:"pricingModel,omitempty"`
 }
 
 // AdGroupUpdate is the mutable subset for PUT.
@@ -93,9 +96,19 @@ type adGroupUpdateEnvelope struct {
 }
 
 func (c *Client) CreateAdGroup(ctx context.Context, campaignID int64, in *AdGroupCreate) (*AdGroup, error) {
+	if in == nil {
+		return nil, fmt.Errorf("ad group create payload is required")
+	}
+	payload := *in
+	if strings.TrimSpace(payload.PricingModel) == "" {
+		payload.PricingModel = "CPC"
+	}
+	if strings.TrimSpace(payload.StartTime) == "" {
+		payload.StartTime = time.Now().UTC().Format("2006-01-02T15:04:05.000")
+	}
 	var env Response[AdGroup]
 	path := fmt.Sprintf("campaigns/%d/adgroups", campaignID)
-	if err := c.DoJSON(ctx, http.MethodPost, path, in, &env); err != nil {
+	if err := c.DoJSON(ctx, http.MethodPost, path, &payload, &env); err != nil {
 		return nil, err
 	}
 	return &env.Data, nil
