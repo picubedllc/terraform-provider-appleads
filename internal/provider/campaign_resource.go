@@ -238,13 +238,14 @@ func (r *campaignResource) Create(ctx context.Context, req resource.CreateReques
 		return
 	}
 
-	// Populate state entirely from the Apple response (not the plan) so computed
-	// fields and server-side normalization are captured correctly.
+	// Populate state from the Apple response, keeping configured money strings
+	// when Apple only changes decimal formatting ("5.00" → "5").
 	state, diags := campaignModelFromClient(ctx, created)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
+	state = overlayCampaignMoney(plan, state)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }
 
@@ -292,6 +293,7 @@ func (r *campaignResource) Read(ctx context.Context, req resource.ReadRequest, r
 	if resp.Diagnostics.HasError() {
 		return
 	}
+	newState = overlayCampaignMoney(state, newState)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &newState)...)
 }
 
@@ -338,6 +340,7 @@ func (r *campaignResource) Update(ctx context.Context, req resource.UpdateReques
 	if resp.Diagnostics.HasError() {
 		return
 	}
+	newState = overlayCampaignMoney(plan, newState)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &newState)...)
 }
 

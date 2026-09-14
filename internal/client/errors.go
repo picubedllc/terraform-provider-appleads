@@ -75,12 +75,30 @@ func parseAPIError(resp *http.Response, body []byte) *APIError {
 	}
 
 	if apiErr.Message == "" && len(body) > 0 {
-		apiErr.Message = strings.TrimSpace(string(body))
+		if isHTMLErrorBody(resp, body) {
+			apiErr.Message = http.StatusText(resp.StatusCode)
+		} else {
+			apiErr.Message = strings.TrimSpace(string(body))
+		}
 	}
 	if apiErr.Message == "" {
 		apiErr.Message = http.StatusText(resp.StatusCode)
 	}
 	return apiErr
+}
+
+func isHTMLErrorBody(resp *http.Response, body []byte) bool {
+	if resp != nil {
+		ct := strings.ToLower(resp.Header.Get("Content-Type"))
+		if strings.Contains(ct, "text/html") {
+			return true
+		}
+	}
+	s := strings.ToLower(strings.TrimSpace(string(body)))
+	if s == "" {
+		return false
+	}
+	return strings.HasPrefix(s, "<!doctype html") || strings.HasPrefix(s, "<html") || strings.Contains(s, "<html")
 }
 
 func firstHeader(resp *http.Response, names ...string) string {

@@ -6,6 +6,7 @@ package client
 import (
 	"fmt"
 	"net/http"
+	"strings"
 )
 
 // AuthTransport is an http.RoundTripper that injects Apple Ads auth and account headers.
@@ -44,7 +45,9 @@ func (t *AuthTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	r := req.Clone(req.Context())
 	r.Header = req.Header.Clone()
 	r.Header.Set("Authorization", "Bearer "+token)
-	if t.OrgID != "" {
+	// GET /acls and GET /me are account-level; Apple does not require
+	// X-AP-Context there. Campaign and other org-scoped calls do.
+	if t.OrgID != "" && orgContextRequired(r.URL.Path) {
 		r.Header.Set(HeaderAPContext, "orgId="+t.OrgID)
 	}
 	if r.Header.Get("Accept") == "" {
@@ -67,4 +70,9 @@ func NewAuthenticatedHTTPClient(tokens TokenSource, orgID string, base http.Roun
 			Base:   base,
 		},
 	}
+}
+
+func orgContextRequired(path string) bool {
+	p := strings.TrimSuffix(path, "/")
+	return !strings.HasSuffix(p, "/acls") && !strings.HasSuffix(p, "/me")
 }

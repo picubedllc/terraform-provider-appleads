@@ -246,5 +246,8 @@ func testAccAPIClientFromEnv() (*client.Client, error) {
 	}
 	httpClient := client.NewAuthenticatedHTTPClient(tokens, creds.OrgID, nil)
 	httpClient = client.WithRetry(httpClient, client.RetryConfig{})
-	return client.New(client.WithHTTPClient(httpClient))
+	return client.New(
+		client.WithHTTPClient(httpClient),
+		client.WithOrgID(creds.OrgID),
+	)
 }

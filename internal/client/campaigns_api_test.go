@@ -64,6 +64,40 @@ func TestCreateCampaign_SuccessPopulatesFromResponse(t *testing.T) {
 	}
 }
 
+func TestCreateCampaign_IncludesOrgIDInBody(t *testing.T) {
+	t.Parallel()
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body CampaignCreate
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Fatal(err)
+		}
+		if body.OrgID != 1234567 {
+			t.Fatalf("orgId = %d, want 1234567", body.OrgID)
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"data": map[string]any{"id": 1, "name": body.Name, "orgId": body.OrgID},
+		})
+	}))
+	t.Cleanup(srv.Close)
+
+	c, err := New(WithBaseURL(srv.URL), WithOrgID("1234567"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	out, err := c.CreateCampaign(context.Background(), &CampaignCreate{
+		Name:               "Demo",
+		AdamID:             42,
+		CountriesOrRegions: []string{"US"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out.OrgID != 1234567 {
+		t.Fatalf("orgId = %d", out.OrgID)
+	}
+}
+
 func TestCreateCampaign_APIValidationErrorSurfaced(t *testing.T) {
 	t.Parallel()
 
