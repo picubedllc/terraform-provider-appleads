@@ -1,5 +1,11 @@
 ## Unreleased
 
+BUG FIXES:
+
+* Keep configured ad group `default_bid_amount` and keyword `bid_amount` decimal strings when Apple only changes scale (`1.00` → `1`). Omit keyword bids stay null in state even if Apple returns the ad group default.
+
+## 0.2.2
+
 BREAKING CHANGES:
 
 * `appleads_ad_group` requires `pricing_model` (`CPC` or `CPM`) and `start_time`. Apple Ads create requires `pricingModel` (`REQUIRED_VALUE`) and `startTime` (`START_TIME_IS_REQUIRED`); the provider does not default omitted values ([#31](https://github.com/picubedllc/terraform-provider-appleads/pull/31)).

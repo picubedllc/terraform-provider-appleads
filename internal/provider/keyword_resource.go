@@ -176,7 +176,7 @@ func (r *keywordResource) Create(ctx context.Context, req resource.CreateRequest
 	if created.AdGroupID == 0 {
 		created.AdGroupID = adGroupID
 	}
-	state := keywordModelFromClient(created)
+	state := overlayKeywordMoney(plan, keywordModelFromClient(created))
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }
 
@@ -206,7 +206,7 @@ func (r *keywordResource) Read(ctx context.Context, req resource.ReadRequest, re
 		resp.State.RemoveResource(ctx)
 		return
 	}
-	newState := keywordModelFromClient(got)
+	newState := overlayKeywordMoney(state, keywordModelFromClient(got))
 	resp.Diagnostics.Append(resp.State.Set(ctx, &newState)...)
 }
 
@@ -294,7 +294,7 @@ func (r *keywordResource) Update(ctx context.Context, req resource.UpdateRequest
 	if updated.MatchType == "" {
 		updated.MatchType = state.MatchType.ValueString()
 	}
-	newState := keywordModelFromClient(updated)
+	newState := overlayKeywordMoney(plan, keywordModelFromClient(updated))
 	resp.Diagnostics.Append(resp.State.Set(ctx, &newState)...)
 }
 

@@ -134,6 +134,36 @@ func TestAdGroupCreate_AndStateFromResponse(t *testing.T) {
 	}
 }
 
+func TestOverlayAdGroupMoney_KeepsConfiguredScale(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name       string
+		configured string
+		reported   string
+		want       string
+	}{
+		{name: "trailing zeros", configured: "1.00", reported: "1", want: "1.00"},
+		{name: "cents unchanged", configured: "0.58", reported: "0.58", want: "0.58"},
+		{name: "cents extra scale", configured: "0.58", reported: "0.580", want: "0.58"},
+		{name: "half dollar scale", configured: "0.50", reported: "0.5", want: "0.50"},
+		{name: "real change keeps API", configured: "0.58", reported: "0.59", want: "0.59"},
+		{name: "whole dollar change", configured: "1.00", reported: "2", want: "2"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			out := overlayAdGroupMoney(
+				adGroupModel{DefaultBidAmount: types.StringValue(tt.configured), DefaultBidCurrency: types.StringValue("USD")},
+				adGroupModel{DefaultBidAmount: types.StringValue(tt.reported), DefaultBidCurrency: types.StringValue("USD")},
+			)
+			if out.DefaultBidAmount.ValueString() != tt.want {
+				t.Fatalf("amount = %q, want %q", out.DefaultBidAmount.ValueString(), tt.want)
+			}
+		})
+	}
+}
+
 func TestAdGroupResource_SchemaRequiredCreateFields(t *testing.T) {
 	t.Parallel()
 
