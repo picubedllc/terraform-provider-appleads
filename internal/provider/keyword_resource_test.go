@@ -164,3 +164,31 @@ func TestKeywordCreate_APIValidationDiagnostic(t *testing.T) {
 		t.Fatalf("detail = %s", diags[0].Detail())
 	}
 }
+
+func TestOverlayKeywordMoney_KeepsConfiguredScale(t *testing.T) {
+	t.Parallel()
+
+	configured := keywordModel{
+		BidAmount:   types.StringValue("1.50"),
+		BidCurrency: types.StringValue("USD"),
+	}
+	reported := keywordModel{
+		BidAmount:   types.StringValue("1.5"),
+		BidCurrency: types.StringValue("USD"),
+	}
+	out := overlayKeywordMoney(configured, reported)
+	if out.BidAmount.ValueString() != "1.50" {
+		t.Fatalf("amount = %q", out.BidAmount.ValueString())
+	}
+
+	reported.BidAmount = types.StringValue("2")
+	out = overlayKeywordMoney(configured, reported)
+	if out.BidAmount.ValueString() != "2" {
+		t.Fatalf("changed amount should keep API value, got %q", out.BidAmount.ValueString())
+	}
+
+	omitted := overlayKeywordMoney(keywordModel{BidAmount: types.StringNull()}, reported)
+	if !omitted.BidAmount.IsNull() {
+		t.Fatalf("omitted bid should stay null, got %q", omitted.BidAmount.ValueString())
+	}
+}

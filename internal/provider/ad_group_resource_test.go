@@ -134,6 +134,29 @@ func TestAdGroupCreate_AndStateFromResponse(t *testing.T) {
 	}
 }
 
+func TestOverlayAdGroupMoney_KeepsConfiguredScale(t *testing.T) {
+	t.Parallel()
+
+	configured := adGroupModel{
+		DefaultBidAmount:   types.StringValue("1.00"),
+		DefaultBidCurrency: types.StringValue("USD"),
+	}
+	reported := adGroupModel{
+		DefaultBidAmount:   types.StringValue("1"),
+		DefaultBidCurrency: types.StringValue("USD"),
+	}
+	out := overlayAdGroupMoney(configured, reported)
+	if out.DefaultBidAmount.ValueString() != "1.00" {
+		t.Fatalf("amount = %q", out.DefaultBidAmount.ValueString())
+	}
+
+	reported.DefaultBidAmount = types.StringValue("2")
+	out = overlayAdGroupMoney(configured, reported)
+	if out.DefaultBidAmount.ValueString() != "2" {
+		t.Fatalf("changed amount should keep API value, got %q", out.DefaultBidAmount.ValueString())
+	}
+}
+
 func TestAdGroupResource_SchemaRequiredCreateFields(t *testing.T) {
 	t.Parallel()
 

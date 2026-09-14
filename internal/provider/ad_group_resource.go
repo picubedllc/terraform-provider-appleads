@@ -205,7 +205,7 @@ func (r *adGroupResource) Create(ctx context.Context, req resource.CreateRequest
 		resp.Diagnostics.Append(apiErrorDiagnostic("Unable to create Apple Ads ad group", err)...)
 		return
 	}
-	state := adGroupModelFromClient(created)
+	state := overlayAdGroupMoney(plan, adGroupModelFromClient(created))
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }
 
@@ -234,7 +234,7 @@ func (r *adGroupResource) Read(ctx context.Context, req resource.ReadRequest, re
 		resp.State.RemoveResource(ctx)
 		return
 	}
-	newState := adGroupModelFromClient(got)
+	newState := overlayAdGroupMoney(state, adGroupModelFromClient(got))
 	resp.Diagnostics.Append(resp.State.Set(ctx, &newState)...)
 }
 
@@ -300,7 +300,7 @@ func (r *adGroupResource) Update(ctx context.Context, req resource.UpdateRequest
 		resp.Diagnostics.Append(apiErrorDiagnostic("Unable to update Apple Ads ad group", err)...)
 		return
 	}
-	newState := adGroupModelFromClient(updated)
+	newState := overlayAdGroupMoney(plan, adGroupModelFromClient(updated))
 	resp.Diagnostics.Append(resp.State.Set(ctx, &newState)...)
 }
 

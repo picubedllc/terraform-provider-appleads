@@ -195,6 +195,29 @@ func overlayCampaignMoney(configured, reported campaignModel) campaignModel {
 	return reported
 }
 
+// overlayAdGroupMoney keeps configured decimal strings when Apple normalizes
+// them (e.g. "1.00" → "1") so Create does not fail Terraform's after-apply
+// consistency check and taint the ad group.
+func overlayAdGroupMoney(configured, reported adGroupModel) adGroupModel {
+	reported.DefaultBidAmount = preferAmount(configured.DefaultBidAmount, reported.DefaultBidAmount)
+	reported.DefaultBidCurrency = preferAmount(configured.DefaultBidCurrency, reported.DefaultBidCurrency)
+	reported.CPAGoalAmount = preferAmount(configured.CPAGoalAmount, reported.CPAGoalAmount)
+	reported.CPAGoalCurrency = preferAmount(configured.CPAGoalCurrency, reported.CPAGoalCurrency)
+	return reported
+}
+
+// overlayKeywordMoney keeps a configured bid's decimal scale. When bid_amount
+// is omitted, state stays null even if Apple returns the ad group default.
+func overlayKeywordMoney(configured, reported keywordModel) keywordModel {
+	if configured.BidAmount.IsNull() || (!configured.BidAmount.IsUnknown() && configured.BidAmount.ValueString() == "") {
+		reported.BidAmount = types.StringNull()
+	} else {
+		reported.BidAmount = preferAmount(configured.BidAmount, reported.BidAmount)
+	}
+	reported.BidCurrency = preferAmount(configured.BidCurrency, reported.BidCurrency)
+	return reported
+}
+
 func preferAmount(configured, reported types.String) types.String {
 	if configured.IsNull() || configured.IsUnknown() || reported.IsNull() || reported.IsUnknown() {
 		return reported
