@@ -14,7 +14,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/boolplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringdefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
@@ -38,7 +37,7 @@ type adGroupResource struct {
 // adGroupModel maps appleads_ad_group.
 //
 // Immutable: campaign_id, pricing_model (no RequiresReplace — Update errors instead).
-// Mutable: name, status, default_bid_amount, cpa_goal_amount, automated_keywords_opt_in, end_time.
+// Mutable: name, status, default_bid_amount, cpa_goal_amount, automated_keywords_opt_in, start_time, end_time.
 type adGroupModel struct {
 	ID                     types.String `tfsdk:"id"`
 	CampaignID             types.String `tfsdk:"campaign_id"`
@@ -50,6 +49,7 @@ type adGroupModel struct {
 	CPAGoalCurrency        types.String `tfsdk:"cpa_goal_currency"`
 	AutomatedKeywordsOptIn types.Bool   `tfsdk:"automated_keywords_opt_in"`
 	PricingModel           types.String `tfsdk:"pricing_model"`
+	StartTime              types.String `tfsdk:"start_time"`
 	EndTime                types.String `tfsdk:"end_time"`
 	ServingStatus          types.String `tfsdk:"serving_status"`
 	DisplayStatus          types.String `tfsdk:"display_status"`
@@ -64,7 +64,7 @@ func (r *adGroupResource) Schema(ctx context.Context, req resource.SchemaRequest
 	resp.Schema = schema.Schema{
 		MarkdownDescription: "Manages an Apple Ads ad group under a campaign.\n\n" +
 			"**Immutable:** `campaign_id`, `pricing_model` — changing them returns an error (no `RequiresReplace`) so historical ad-group identity is preserved.\n\n" +
-			"**Mutable:** `name`, `status`, `default_bid_amount`/`default_bid_currency`, `cpa_goal_amount`/`cpa_goal_currency`, `automated_keywords_opt_in` (Search Match), `end_time`.\n\n" +
+			"**Mutable:** `name`, `status`, `default_bid_amount`/`default_bid_currency`, `cpa_goal_amount`/`cpa_goal_currency`, `automated_keywords_opt_in` (Search Match), `start_time`, `end_time`.\n\n" +
 			"**Computed:** `id`, `serving_status`, `display_status`, `modification_time`.\n\n" +
 			"Audience `targetingDimensions` from Apple's API are not yet exposed in this resource schema.",
 		Attributes: map[string]schema.Attribute{
@@ -118,12 +118,13 @@ func (r *adGroupResource) Schema(ctx context.Context, req resource.SchemaRequest
 				PlanModifiers:       []planmodifier.Bool{boolplanmodifier.UseStateForUnknown()},
 			},
 			"pricing_model": schema.StringAttribute{
-				Optional:            true,
-				Computed:            true,
-				MarkdownDescription: "Pricing model: `CPC` (cost per tap) or `CPM` (cost per thousand impressions). Defaults to `CPC`. Must match the parent campaign billing event (`TAPS` → `CPC`, `IMPRESSIONS` → `CPM`). Immutable after create.",
+				Required:            true,
+				MarkdownDescription: "Pricing model: `CPC` (cost per tap) or `CPM` (cost per thousand impressions). Required by Apple Ads on create. Must match the parent campaign billing event (`TAPS` → `CPC`, `IMPRESSIONS` → `CPM`). Immutable after create.",
 				Validators:          []validator.String{stringvalidator.OneOf(client.PricingModelCPC, client.PricingModelCPM)},
-				Default:             stringdefault.StaticString(client.PricingModelCPC),
-				PlanModifiers:       []planmodifier.String{stringplanmodifier.UseStateForUnknown()},
+			},
+			"start_time": schema.StringAttribute{
+				Required:            true,
+				MarkdownDescription: "Ad group start time in ISO-8601 format (mutable). Required by Apple Ads on create. Use millisecond precision, e.g. `2026-01-01T00:00:00.000`.",
 			},
 			"end_time": schema.StringAttribute{
 				Optional:            true,
@@ -187,9 +188,8 @@ func (r *adGroupResource) Create(ctx context.Context, req resource.CreateRequest
 		Name:             plan.Name.ValueString(),
 		DefaultBidAmount: bid,
 		CPAGoal:          cpa,
-	}
-	if !plan.PricingModel.IsNull() && !plan.PricingModel.IsUnknown() {
-		in.PricingModel = plan.PricingModel.ValueString()
+		PricingModel:     plan.PricingModel.ValueString(),
+		StartTime:        plan.StartTime.ValueString(),
 	}
 	if !plan.Status.IsNull() && !plan.Status.IsUnknown() {
 		in.Status = plan.Status.ValueString()
@@ -283,6 +283,7 @@ func (r *adGroupResource) Update(ctx context.Context, req resource.UpdateRequest
 		Name:             plan.Name.ValueString(),
 		DefaultBidAmount: bid,
 		CPAGoal:          cpa,
+		StartTime:        plan.StartTime.ValueString(),
 	}
 	if !plan.Status.IsNull() && !plan.Status.IsUnknown() {
 		upd.Status = plan.Status.ValueString()
@@ -356,6 +357,11 @@ func adGroupModelFromClient(a *client.AdGroup) adGroupModel {
 		m.PricingModel = types.StringValue(a.PricingModel)
 	} else {
 		m.PricingModel = types.StringNull()
+	}
+	if a.StartTime != "" {
+		m.StartTime = types.StringValue(a.StartTime)
+	} else {
+		m.StartTime = types.StringNull()
 	}
 	if a.DefaultBidAmount != nil {
 		m.DefaultBidAmount = types.StringValue(a.DefaultBidAmount.Amount)

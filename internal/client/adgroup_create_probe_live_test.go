@@ -57,6 +57,8 @@ func TestLiveAdGroupCreateProbe(t *testing.T) {
 		Name:             "tf-acc-adgroup-probe",
 		Status:           "PAUSED",
 		DefaultBidAmount: &client.Money{Amount: "1.00", Currency: "USD"},
+		PricingModel:     client.PricingModelCPC,
+		StartTime:        time.Now().UTC().Format("2006-01-02T15:04:05.000"),
 	})
 	if err != nil {
 		t.Fatalf("CreateAdGroup: %v", err)

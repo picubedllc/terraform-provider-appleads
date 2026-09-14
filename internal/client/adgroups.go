@@ -9,14 +9,13 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-	"time"
 )
 
 // AdGroup is an Apple Ads ad group (API v5).
 //
 // Mutability:
 //
-//	Immutable: CampaignID
+//	Immutable: CampaignID, PricingModel
 //	Mutable: Name, Status, DefaultBidAmount, CPAGoal, AutomatedKeywordsOptIn,
 //	         StartTime, EndTime, TargetingDimensions
 //	Computed: ID, ServingStatus, DisplayStatus, ModificationTime, Deleted
@@ -73,6 +72,10 @@ type LocalityTarget struct {
 }
 
 // AdGroupCreate is POST /campaigns/{id}/adgroups body.
+//
+// Apple requires name, defaultBidAmount, pricingModel, and startTime
+// (HTTP 400 REQUIRED_VALUE / START_TIME_IS_REQUIRED). This client does not
+// default omitted fields.
 type AdGroupCreate struct {
 	Name                   string               `json:"name"`
 	DefaultBidAmount       *Money               `json:"defaultBidAmount"`
@@ -105,16 +108,9 @@ func (c *Client) CreateAdGroup(ctx context.Context, campaignID int64, in *AdGrou
 	if in == nil {
 		return nil, fmt.Errorf("ad group create payload is required")
 	}
-	payload := *in
-	if strings.TrimSpace(payload.PricingModel) == "" {
-		payload.PricingModel = PricingModelCPC
-	}
-	if strings.TrimSpace(payload.StartTime) == "" {
-		payload.StartTime = time.Now().UTC().Format("2006-01-02T15:04:05.000")
-	}
 	var env Response[AdGroup]
 	path := fmt.Sprintf("campaigns/%d/adgroups", campaignID)
-	if err := c.DoJSON(ctx, http.MethodPost, path, &payload, &env); err != nil {
+	if err := c.DoJSON(ctx, http.MethodPost, path, in, &env); err != nil {
 		return nil, err
 	}
 	return &env.Data, nil

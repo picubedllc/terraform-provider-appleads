@@ -11,6 +11,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 
 	"github.com/picubedllc/terraform-provider-appleads/internal/client"
@@ -29,6 +30,7 @@ func TestAdGroupModelFromClient(t *testing.T) {
 		DefaultBidAmount:       &client.Money{Amount: "1.25", Currency: "USD"},
 		CPAGoal:                &client.Money{Amount: "5.00", Currency: "USD"},
 		AutomatedKeywordsOptIn: true,
+		StartTime:              "2026-01-01T00:00:00.000",
 		EndTime:                "2026-12-01T00:00:00Z",
 		ModificationTime:       "2026-05-01T00:00:00Z",
 		PricingModel:           client.PricingModelCPC,
@@ -40,7 +42,7 @@ func TestAdGroupModelFromClient(t *testing.T) {
 	if state.DefaultBidAmount.ValueString() != "1.25" || state.CPAGoalAmount.ValueString() != "5.00" {
 		t.Fatalf("money = %#v", state)
 	}
-	if !state.AutomatedKeywordsOptIn.ValueBool() || state.EndTime.ValueString() != "2026-12-01T00:00:00Z" {
+	if !state.AutomatedKeywordsOptIn.ValueBool() || state.StartTime.ValueString() != "2026-01-01T00:00:00.000" || state.EndTime.ValueString() != "2026-12-01T00:00:00Z" {
 		t.Fatalf("opts = %#v", state)
 	}
 	if state.PricingModel.ValueString() != client.PricingModelCPC {
@@ -57,7 +59,7 @@ func TestAdGroupModelFromClient_NullOptionals(t *testing.T) {
 		Name:       "x",
 		Status:     "PAUSED",
 	})
-	if !state.CPAGoalAmount.IsNull() || !state.EndTime.IsNull() {
+	if !state.CPAGoalAmount.IsNull() || !state.StartTime.IsNull() || !state.EndTime.IsNull() {
 		t.Fatalf("expected null optionals: %#v", state)
 	}
 	if !state.PricingModel.IsNull() {
@@ -79,8 +81,8 @@ func TestAdGroupCreate_AndStateFromResponse(t *testing.T) {
 		if body.PricingModel != client.PricingModelCPC {
 			t.Fatalf("pricingModel = %q", body.PricingModel)
 		}
-		if body.StartTime == "" {
-			t.Fatal("startTime is empty")
+		if body.StartTime != "2026-01-01T00:00:00.000" {
+			t.Fatalf("startTime = %q", body.StartTime)
 		}
 		_ = json.NewEncoder(w).Encode(map[string]any{
 			"data": map[string]any{
@@ -109,6 +111,8 @@ func TestAdGroupCreate_AndStateFromResponse(t *testing.T) {
 		Status:             types.StringValue("ENABLED"),
 		DefaultBidAmount:   types.StringValue("1.50"),
 		DefaultBidCurrency: types.StringValue("USD"),
+		PricingModel:       types.StringValue(client.PricingModelCPC),
+		StartTime:          types.StringValue("2026-01-01T00:00:00.000"),
 	}
 	bid, diags := moneyFromStrings(plan.DefaultBidAmount, plan.DefaultBidCurrency)
 	if diags.HasError() || bid == nil {
@@ -118,6 +122,8 @@ func TestAdGroupCreate_AndStateFromResponse(t *testing.T) {
 		Name:             plan.Name.ValueString(),
 		DefaultBidAmount: bid,
 		Status:           plan.Status.ValueString(),
+		PricingModel:     plan.PricingModel.ValueString(),
+		StartTime:        plan.StartTime.ValueString(),
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -125,6 +131,26 @@ func TestAdGroupCreate_AndStateFromResponse(t *testing.T) {
 	state := adGroupModelFromClient(created)
 	if state.ID.ValueString() != "55" || state.ServingStatus.ValueString() != "RUNNING" {
 		t.Fatalf("state = %#v", state)
+	}
+}
+
+func TestAdGroupResource_SchemaRequiredCreateFields(t *testing.T) {
+	t.Parallel()
+
+	r := NewAdGroupResource()
+	resp := &resource.SchemaResponse{}
+	r.Schema(context.Background(), resource.SchemaRequest{}, resp)
+	if resp.Diagnostics.HasError() {
+		t.Fatalf("schema diagnostics: %v", resp.Diagnostics)
+	}
+	for _, name := range []string{"campaign_id", "name", "default_bid_amount", "pricing_model", "start_time"} {
+		attr, ok := resp.Schema.Attributes[name]
+		if !ok {
+			t.Fatalf("missing attribute %q", name)
+		}
+		if !attr.IsRequired() {
+			t.Fatalf("%s should be required to match Apple Ads create", name)
+		}
 	}
 }
 

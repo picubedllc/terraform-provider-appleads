@@ -98,7 +98,7 @@ Follow `appleads_campaign` ([PI-9](https://linear.app/picubed/issue/PI-9/impleme
 
 Apple campaign delete **archives** the campaign. Terraform `RequiresReplace` would destroy-then-create and throw away historical identity.
 
-Canonical example: [PI-12](https://linear.app/picubed/issue/PI-12/implement-safe-campaign-update) / `internal/provider/campaign_update.go`. Detect immutable plan vs state changes and return an error telling the practitioner to create a **new** resource. The same rule applies to ad groups (`campaign_id`), keywords (`ad_group_id`, `text`, `match_type`), and negative keywords (scope, `text`, `match_type`).
+Canonical example: [PI-12](https://linear.app/picubed/issue/PI-12/implement-safe-campaign-update) / `internal/provider/campaign_update.go`. Detect immutable plan vs state changes and return an error telling the practitioner to create a **new** resource. The same rule applies to ad groups (`campaign_id`, `pricing_model`), keywords (`ad_group_id`, `text`, `match_type`), and negative keywords (scope, `text`, `match_type`).
 
 Do not add `stringplanmodifier.RequiresReplace()` (or list equivalents) to those attributes.
 

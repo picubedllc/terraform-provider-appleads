@@ -38,6 +38,8 @@ resource "appleads_ad_group" "test" {
   status                    = "PAUSED"
   default_bid_amount        = "1.00"
   default_bid_currency      = "USD"
+  pricing_model             = "CPC"
+  start_time                = "2026-01-01T00:00:00.000"
   automated_keywords_opt_in = false
 }
 `, namePrefix),
@@ -58,6 +60,8 @@ resource "appleads_ad_group" "test" {
   status                    = "PAUSED"
   default_bid_amount        = "1.50"
   default_bid_currency      = "USD"
+  pricing_model             = "CPC"
+  start_time                = "2026-01-01T00:00:00.000"
   automated_keywords_opt_in = true
 }
 `, namePrefix),
@@ -101,6 +105,8 @@ resource "appleads_ad_group" "immutable" {
   status               = "PAUSED"
   default_bid_amount   = "1.00"
   default_bid_currency = "USD"
+  pricing_model        = "CPC"
+  start_time           = "2026-01-01T00:00:00.000"
 }
 `,
 				Check: resource.ComposeAggregateTestCheckFunc(
@@ -120,6 +126,8 @@ resource "appleads_ad_group" "immutable" {
   status               = "PAUSED"
   default_bid_amount   = "1.00"
   default_bid_currency = "USD"
+  pricing_model        = "CPC"
+  start_time           = "2026-01-01T00:00:00.000"
 }
 `,
 				ExpectError: regexp.MustCompile(`Cannot change immutable ad group field "campaign_id"`),
@@ -132,6 +140,8 @@ resource "appleads_ad_group" "immutable" {
   status               = "PAUSED"
   default_bid_amount   = "1.00"
   default_bid_currency = "USD"
+  pricing_model        = "CPC"
+  start_time           = "2026-01-01T00:00:00.000"
 }
 `,
 				Check: resource.ComposeAggregateTestCheckFunc(
