@@ -8,5 +8,17 @@ resource "appleads_ad_group" "main" {
   status                    = "PAUSED"
   default_bid_amount        = "1.25"
   default_bid_currency      = "USD"
+  pricing_model             = "CPC"
+  start_time                = "2026-01-01T00:00:00.000"
   automated_keywords_opt_in = true
+}
+
+resource "appleads_ad_group" "today_tab" {
+  campaign_id          = appleads_campaign.display.id
+  name                 = "Today Tab"
+  status               = "PAUSED"
+  default_bid_amount   = "5.00"
+  default_bid_currency = "USD"
+  pricing_model        = "CPM"
+  start_time           = "2026-01-01T00:00:00.000"
 }

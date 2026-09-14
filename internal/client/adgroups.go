@@ -15,7 +15,7 @@ import (
 //
 // Mutability:
 //
-//	Immutable: CampaignID
+//	Immutable: CampaignID, PricingModel
 //	Mutable: Name, Status, DefaultBidAmount, CPAGoal, AutomatedKeywordsOptIn,
 //	         StartTime, EndTime, TargetingDimensions
 //	Computed: ID, ServingStatus, DisplayStatus, ModificationTime, Deleted
@@ -35,7 +35,14 @@ type AdGroup struct {
 	Deleted                bool                 `json:"deleted,omitempty"`
 	TargetingDimensions    *TargetingDimensions `json:"targetingDimensions,omitempty"`
 	ServingStateReasons    []string             `json:"servingStateReasons,omitempty"`
+	PricingModel           string               `json:"pricingModel,omitempty"`
 }
+
+// PricingModel values for AdGroup.PricingModel (Apple Ads Campaign Management API v5).
+const (
+	PricingModelCPC = "CPC" // cost per tap
+	PricingModelCPM = "CPM" // cost per thousand impressions
+)
 
 // TargetingDimensions holds ad group audience targeting.
 type TargetingDimensions struct {
@@ -65,6 +72,10 @@ type LocalityTarget struct {
 }
 
 // AdGroupCreate is POST /campaigns/{id}/adgroups body.
+//
+// Apple requires name, defaultBidAmount, pricingModel, and startTime
+// (HTTP 400 REQUIRED_VALUE / START_TIME_IS_REQUIRED). This client does not
+// default omitted fields.
 type AdGroupCreate struct {
 	Name                   string               `json:"name"`
 	DefaultBidAmount       *Money               `json:"defaultBidAmount"`
@@ -74,6 +85,7 @@ type AdGroupCreate struct {
 	StartTime              string               `json:"startTime,omitempty"`
 	EndTime                string               `json:"endTime,omitempty"`
 	TargetingDimensions    *TargetingDimensions `json:"targetingDimensions,omitempty"`
+	PricingModel           string               `json:"pricingModel,omitempty"`
 }
 
 // AdGroupUpdate is the mutable subset for PUT.
@@ -93,6 +105,9 @@ type adGroupUpdateEnvelope struct {
 }
 
 func (c *Client) CreateAdGroup(ctx context.Context, campaignID int64, in *AdGroupCreate) (*AdGroup, error) {
+	if in == nil {
+		return nil, fmt.Errorf("ad group create payload is required")
+	}
 	var env Response[AdGroup]
 	path := fmt.Sprintf("campaigns/%d/adgroups", campaignID)
 	if err := c.DoJSON(ctx, http.MethodPost, path, in, &env); err != nil {

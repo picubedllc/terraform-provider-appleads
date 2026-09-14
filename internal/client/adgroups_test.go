@@ -26,6 +26,12 @@ func TestCreateAdGroup_Success(t *testing.T) {
 		if body.Name != "Main" || body.DefaultBidAmount == nil || body.DefaultBidAmount.Amount != "1.25" {
 			t.Fatalf("body = %#v", body)
 		}
+		if body.PricingModel != PricingModelCPC {
+			t.Fatalf("pricingModel = %q", body.PricingModel)
+		}
+		if body.StartTime != "2026-01-01T00:00:00.000" {
+			t.Fatalf("startTime = %q", body.StartTime)
+		}
 		_ = json.NewEncoder(w).Encode(map[string]any{
 			"data": map[string]any{
 				"id":                     77,
@@ -52,12 +58,80 @@ func TestCreateAdGroup_Success(t *testing.T) {
 		DefaultBidAmount:       &Money{Amount: "1.25", Currency: "USD"},
 		AutomatedKeywordsOptIn: true,
 		Status:                 "ENABLED",
+		PricingModel:           PricingModelCPC,
+		StartTime:              "2026-01-01T00:00:00.000",
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if out.ID != 77 || out.CampaignID != 10 || out.DefaultBidAmount.Amount != "1.25" {
 		t.Fatalf("out = %#v", out)
+	}
+}
+
+func TestCreateAdGroup_DoesNotDefaultRequiredFields(t *testing.T) {
+	t.Parallel()
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body AdGroupCreate
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Fatal(err)
+		}
+		if body.PricingModel != "" {
+			t.Fatalf("pricingModel = %q, want empty", body.PricingModel)
+		}
+		if body.StartTime != "" {
+			t.Fatalf("startTime = %q, want empty", body.StartTime)
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"data": map[string]any{"id": 1, "campaignId": 10, "name": body.Name},
+		})
+	}))
+	t.Cleanup(srv.Close)
+
+	c, err := New(WithBaseURL(srv.URL))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := c.CreateAdGroup(context.Background(), 10, &AdGroupCreate{
+		Name:             "Main",
+		DefaultBidAmount: &Money{Amount: "1.00", Currency: "USD"},
+	}); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestCreateAdGroup_KeepsExplicitPricingModel(t *testing.T) {
+	t.Parallel()
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body AdGroupCreate
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Fatal(err)
+		}
+		if body.PricingModel != PricingModelCPM {
+			t.Fatalf("pricingModel = %q", body.PricingModel)
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"data": map[string]any{"id": 1, "campaignId": 10, "name": body.Name, "pricingModel": body.PricingModel},
+		})
+	}))
+	t.Cleanup(srv.Close)
+
+	c, err := New(WithBaseURL(srv.URL))
+	if err != nil {
+		t.Fatal(err)
+	}
+	out, err := c.CreateAdGroup(context.Background(), 10, &AdGroupCreate{
+		Name:             "Main",
+		DefaultBidAmount: &Money{Amount: "1.00", Currency: "USD"},
+		PricingModel:     PricingModelCPM,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out.PricingModel != PricingModelCPM {
+		t.Fatalf("out.PricingModel = %q", out.PricingModel)
 	}
 }
 
