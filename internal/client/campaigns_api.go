@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 )
 
 // CreateCampaign creates a campaign via POST /campaigns.
@@ -15,8 +16,14 @@ func (c *Client) CreateCampaign(ctx context.Context, in *CampaignCreate) (*Campa
 	if in == nil {
 		return nil, fmt.Errorf("campaign create payload is required")
 	}
+	payload := *in
+	if payload.OrgID == 0 {
+		if id, err := strconv.ParseInt(strings.TrimSpace(c.orgID), 10, 64); err == nil && id != 0 {
+			payload.OrgID = id
+		}
+	}
 	var env Response[Campaign]
-	if err := c.DoJSON(ctx, http.MethodPost, "campaigns", in, &env); err != nil {
+	if err := c.DoJSON(ctx, http.MethodPost, "campaigns", &payload, &env); err != nil {
 		return nil, err
 	}
 	return &env.Data, nil

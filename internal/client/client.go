@@ -33,6 +33,7 @@ type Client struct {
 	httpClient *http.Client
 	tokens     TokenSource
 	userAgent  string
+	orgID      string
 }
 
 // Option configures a Client.
@@ -68,6 +69,15 @@ func WithTokenSource(tokens TokenSource) Option {
 func WithUserAgent(ua string) Option {
 	return func(c *Client) {
 		c.userAgent = ua
+	}
+}
+
+// WithOrgID records the organization ID used for X-AP-Context (via AuthTransport)
+// and for 403 diagnostics against GET /acls. The header itself is injected by
+// AuthTransport; this option is for client-side checks and create payloads.
+func WithOrgID(orgID string) Option {
+	return func(c *Client) {
+		c.orgID = strings.TrimSpace(orgID)
 	}
 }
 
@@ -160,7 +170,7 @@ func (c *Client) do(ctx context.Context, method, path string, query url.Values, 
 	}
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return parseAPIError(resp, respBody)
+		return c.enrichAPIError(ctx, parseAPIError(resp, respBody))
 	}
 
 	if out == nil || len(respBody) == 0 {

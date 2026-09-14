@@ -9,7 +9,6 @@ import (
 	"errors"
 	"net/http"
 	"os"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -70,13 +69,8 @@ func Credentials(t *testing.T) client.Credentials {
 	}
 }
 
-// UserACL is the subset of GET /acls used to prove live authentication.
-type UserACL struct {
-	OrgID int64 `json:"orgId"`
-}
-
 // RequireUserACLs calls GET /acls, retrying Apple 503/429/5xx blips.
-func RequireUserACLs(t *testing.T, c *client.Client) []UserACL {
+func RequireUserACLs(t *testing.T, c *client.Client) []client.UserACL {
 	t.Helper()
 
 	ctx, cancel := context.WithTimeout(t.Context(), 90*time.Second)
@@ -85,7 +79,7 @@ func RequireUserACLs(t *testing.T, c *client.Client) []UserACL {
 	deadline := time.Now().Add(45 * time.Second)
 	var last error
 	for attempt := 1; ; attempt++ {
-		acls, err := client.FetchAllPages[UserACL](ctx, c, http.MethodGet, "/acls", 1000, nil)
+		acls, err := c.ListUserACLs(ctx)
 		if err == nil {
 			if len(acls) == 0 {
 				t.Fatal("GET /acls returned no organizations")
@@ -112,14 +106,11 @@ func RequireUserACLs(t *testing.T, c *client.Client) []UserACL {
 }
 
 // RequireOrgAccess asserts the configured org ID is present in the ACL list.
-func RequireOrgAccess(t *testing.T, acls []UserACL, orgID string) {
+func RequireOrgAccess(t *testing.T, acls []client.UserACL, orgID string) {
 	t.Helper()
-	for _, acl := range acls {
-		if strconv.FormatInt(acl.OrgID, 10) == orgID {
-			return
-		}
+	if err := client.CheckOrgID(orgID, acls); err != nil {
+		t.Fatal(err)
 	}
-	t.Fatalf("APPLEADS_ORG_ID %q was not in the authenticated ACL list", orgID)
 }
 
 // LiveClient builds the same authenticated, retrying Apple Ads client the provider uses.
@@ -136,7 +127,10 @@ func LiveClient(t *testing.T) (*client.Client, client.Credentials) {
 		client.NewAuthenticatedHTTPClient(src, creds.OrgID, nil),
 		client.RetryConfig{},
 	)
-	c, err := client.New(client.WithHTTPClient(httpClient))
+	c, err := client.New(
+		client.WithHTTPClient(httpClient),
+		client.WithOrgID(creds.OrgID),
+	)
 	if err != nil {
 		t.Fatal(err)
 	}

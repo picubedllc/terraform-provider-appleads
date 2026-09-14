@@ -5,6 +5,7 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strconv"
 
@@ -109,12 +110,19 @@ func campaignCreateFromPlan(ctx context.Context, plan campaignModel) (*client.Ca
 		DailyBudgetAmount:  daily,
 		SupplySources:      supply,
 		BudgetOrders:       orders,
+		// SEARCH create defaults proven against API v5 (Apple's example + live POST).
+		AdChannelType:   "SEARCH",
+		BillingEvent:    "TAPS",
+		BiddingStrategy: "MANUAL_CPT",
 	}
 	if !plan.Status.IsNull() && !plan.Status.IsUnknown() && plan.Status.ValueString() != "" {
 		in.Status = plan.Status.ValueString()
 	}
 	if !plan.AdChannelType.IsNull() && !plan.AdChannelType.IsUnknown() && plan.AdChannelType.ValueString() != "" {
 		in.AdChannelType = plan.AdChannelType.ValueString()
+	}
+	if len(in.SupplySources) == 0 {
+		in.SupplySources = []string{"APPSTORE_SEARCH_RESULTS"}
 	}
 	if !plan.EndTime.IsNull() && !plan.EndTime.IsUnknown() {
 		in.EndTime = plan.EndTime.ValueString()
@@ -173,9 +181,45 @@ func campaignModelFromClient(ctx context.Context, c *client.Campaign) (campaignM
 	return m, diags
 }
 
+// overlayCampaignMoney keeps configured decimal strings when Apple normalizes
+// them (e.g. "5.00" → "5") so Terraform does not report a perpetual diff.
+func overlayCampaignMoney(configured, reported campaignModel) campaignModel {
+	reported.BudgetAmount = preferAmount(configured.BudgetAmount, reported.BudgetAmount)
+	reported.BudgetCurrency = preferAmount(configured.BudgetCurrency, reported.BudgetCurrency)
+	reported.DailyBudgetAmount = preferAmount(configured.DailyBudgetAmount, reported.DailyBudgetAmount)
+	reported.DailyBudgetCurrency = preferAmount(configured.DailyBudgetCurrency, reported.DailyBudgetCurrency)
+	return reported
+}
+
+func preferAmount(configured, reported types.String) types.String {
+	if configured.IsNull() || configured.IsUnknown() || reported.IsNull() || reported.IsUnknown() {
+		return reported
+	}
+	cfg := configured.ValueString()
+	rep := reported.ValueString()
+	if cfg == "" || cfg == rep {
+		return reported
+	}
+	a, err1 := decimal.NewFromString(cfg)
+	b, err2 := decimal.NewFromString(rep)
+	if err1 != nil || err2 != nil {
+		return reported
+	}
+	if a.Equal(b) {
+		return configured
+	}
+	return reported
+}
+
 func apiErrorDiagnostic(summary string, err error) diag.Diagnostics {
 	var diags diag.Diagnostics
-	if apiErr, ok := err.(*client.APIError); ok {
+	var orgErr *client.OrgIDError
+	if errors.As(err, &orgErr) {
+		diags.AddError("Invalid Apple Ads org_id", orgErr.Error())
+		return diags
+	}
+	var apiErr *client.APIError
+	if errors.As(err, &apiErr) {
 		detail := apiErr.Message
 		if apiErr.Code != "" {
 			detail = apiErr.Code + ": " + detail

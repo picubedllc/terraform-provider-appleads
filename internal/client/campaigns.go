@@ -41,6 +41,7 @@ type Campaign struct {
 	SupplySources                      []string            `json:"supplySources,omitempty"`
 	AdChannelType                      string              `json:"adChannelType,omitempty"`
 	BillingEvent                       string              `json:"billingEvent,omitempty"`
+	BiddingStrategy                    string              `json:"biddingStrategy,omitempty"`
 	BudgetOrders                       []int64             `json:"budgetOrders,omitempty"`
 	StartTime                          string              `json:"startTime,omitempty"`
 	EndTime                            string              `json:"endTime,omitempty"`
@@ -50,7 +51,10 @@ type Campaign struct {
 }
 
 // CampaignCreate is the POST /campaigns body.
+// Field set matches Apple's Create a Campaign example plus the SEARCH
+// defaults proven against API v5 (billingEvent, biddingStrategy, supplySources).
 type CampaignCreate struct {
+	OrgID              int64    `json:"orgId,omitempty"`
 	Name               string   `json:"name"`
 	AdamID             int64    `json:"adamId"`
 	CountriesOrRegions []string `json:"countriesOrRegions"`
@@ -60,6 +64,7 @@ type CampaignCreate struct {
 	SupplySources      []string `json:"supplySources,omitempty"`
 	AdChannelType      string   `json:"adChannelType,omitempty"`
 	BillingEvent       string   `json:"billingEvent,omitempty"`
+	BiddingStrategy    string   `json:"biddingStrategy,omitempty"`
 	BudgetOrders       []int64  `json:"budgetOrders,omitempty"`
 	StartTime          string   `json:"startTime,omitempty"`
 	EndTime            string   `json:"endTime,omitempty"`

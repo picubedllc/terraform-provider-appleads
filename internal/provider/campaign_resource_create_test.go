@@ -86,6 +86,67 @@ func TestCampaignCreateFromPlan_AndStateFromResponse(t *testing.T) {
 	}
 }
 
+func TestCampaignCreateFromPlan_SearchDefaultsMatchLivePayload(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	countries, diags := types.ListValueFrom(ctx, types.StringType, []string{"US"})
+	if diags.HasError() {
+		t.Fatal(diags)
+	}
+	in, diags := campaignCreateFromPlan(ctx, campaignModel{
+		Name:                types.StringValue("Paused Search Campaign"),
+		AdamID:              types.StringValue("1234567890"),
+		Status:              types.StringValue("PAUSED"),
+		CountriesOrRegions:  countries,
+		DailyBudgetAmount:   types.StringValue("5.00"),
+		DailyBudgetCurrency: types.StringValue("USD"),
+		SupplySources:       types.ListNull(types.StringType),
+		BudgetOrders:        types.ListNull(types.StringType),
+	})
+	if diags.HasError() {
+		t.Fatalf("%v", diags)
+	}
+	if in.AdChannelType != "SEARCH" {
+		t.Fatalf("adChannelType = %q", in.AdChannelType)
+	}
+	if len(in.SupplySources) != 1 || in.SupplySources[0] != "APPSTORE_SEARCH_RESULTS" {
+		t.Fatalf("supplySources = %#v", in.SupplySources)
+	}
+	if in.BillingEvent != "TAPS" {
+		t.Fatalf("billingEvent = %q", in.BillingEvent)
+	}
+	if in.BiddingStrategy != "MANUAL_CPT" {
+		t.Fatalf("biddingStrategy = %q", in.BiddingStrategy)
+	}
+	if in.DailyBudgetAmount == nil || in.DailyBudgetAmount.Amount != "5.00" || in.DailyBudgetAmount.Currency != "USD" {
+		t.Fatalf("dailyBudgetAmount = %#v", in.DailyBudgetAmount)
+	}
+}
+
+func TestOverlayCampaignMoney_KeepsConfiguredScale(t *testing.T) {
+	t.Parallel()
+
+	configured := campaignModel{
+		DailyBudgetAmount:   types.StringValue("5.00"),
+		DailyBudgetCurrency: types.StringValue("USD"),
+	}
+	reported := campaignModel{
+		DailyBudgetAmount:   types.StringValue("5"),
+		DailyBudgetCurrency: types.StringValue("USD"),
+	}
+	out := overlayCampaignMoney(configured, reported)
+	if out.DailyBudgetAmount.ValueString() != "5.00" {
+		t.Fatalf("amount = %q", out.DailyBudgetAmount.ValueString())
+	}
+
+	reported.DailyBudgetAmount = types.StringValue("6")
+	out = overlayCampaignMoney(configured, reported)
+	if out.DailyBudgetAmount.ValueString() != "6" {
+		t.Fatalf("changed amount should keep API value, got %q", out.DailyBudgetAmount.ValueString())
+	}
+}
+
 func TestCampaignCreate_APIValidationDiagnostic(t *testing.T) {
 	t.Parallel()
 

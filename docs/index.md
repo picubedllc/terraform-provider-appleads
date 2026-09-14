@@ -41,6 +41,6 @@ provider "appleads" {
 - `allow_campaign_deletion` (Boolean) When false (default), campaign destroy/archive operations are rejected. See the campaign deletion safety decision doc.
 - `client_id` (String) Apple Ads API client ID. May also be set via `APPLEADS_CLIENT_ID`.
 - `key_id` (String) Apple Ads API key ID. May also be set via `APPLEADS_KEY_ID`.
-- `org_id` (String) Apple Ads organization ID. May also be set via `APPLEADS_ORG_ID`.
+- `org_id` (String) Apple Ads organization ID from GET /acls (`orgId`). Sent as `X-AP-Context: orgId=<org_id>` on org-scoped API calls. A truncated or wrong value fails campaign calls with FORBIDDEN. May also be set via `APPLEADS_ORG_ID`.
 - `private_key` (String, Sensitive) PEM-encoded EC private key used to sign the OAuth client assertion. May also be set via `APPLEADS_PRIVATE_KEY`.
 - `team_id` (String) Apple Ads API team ID. May also be set via `APPLEADS_TEAM_ID`.

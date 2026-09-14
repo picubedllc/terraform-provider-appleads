@@ -62,6 +62,35 @@ func TestAuthTransport_InjectsBearerAndOrgHeader(t *testing.T) {
 	}
 }
 
+func TestAuthTransport_OmitsOrgHeaderOnACLs(t *testing.T) {
+	t.Parallel()
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if got := r.Header.Get("Authorization"); got != "Bearer tok-1" {
+			t.Errorf("Authorization = %q", got)
+		}
+		if got := r.Header.Get(client.HeaderAPContext); got != "" {
+			t.Errorf("X-AP-Context on /acls = %q, want empty", got)
+		}
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	t.Cleanup(srv.Close)
+
+	httpClient := client.NewAuthenticatedHTTPClient(mockTokenSource{token: "tok-1"}, "1234567", srv.Client().Transport)
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, srv.URL+"/api/v5/acls", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusNoContent {
+		t.Fatalf("status = %d", resp.StatusCode)
+	}
+}
+
 func TestAuthTransport_TokenSourceError(t *testing.T) {
 	t.Parallel()
 

@@ -64,8 +64,10 @@ func (p *AppleAdsProvider) Schema(ctx context.Context, req provider.SchemaReques
 		MarkdownDescription: "Manage Apple Ads configuration as code.",
 		Attributes: map[string]schema.Attribute{
 			"org_id": schema.StringAttribute{
-				Optional:            true,
-				MarkdownDescription: "Apple Ads organization ID. May also be set via `APPLEADS_ORG_ID`.",
+				Optional: true,
+				MarkdownDescription: "Apple Ads organization ID from GET /acls (`orgId`). Sent as `X-AP-Context: orgId=<org_id>` " +
+					"on org-scoped API calls. A truncated or wrong value fails campaign calls with FORBIDDEN. " +
+					"May also be set via `APPLEADS_ORG_ID`.",
 			},
 			"client_id": schema.StringAttribute{
 				Optional:            true,
@@ -149,6 +151,7 @@ func buildProviderData(creds client.Credentials, allowDeletion bool) (*ProviderD
 
 	apiClient, err := client.New(
 		client.WithHTTPClient(httpClient),
+		client.WithOrgID(creds.OrgID),
 		client.WithUserAgent(fmt.Sprintf("terraform-provider-appleads/%s", "dev")),
 	)
 	if err != nil {
