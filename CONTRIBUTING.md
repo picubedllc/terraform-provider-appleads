@@ -41,6 +41,8 @@ The certificate must be allowed to manage campaigns. Read-only certs fail mutati
 
 Do not commit credentials. PR CI never receives `APPLEADS_*` secrets.
 
+Set `APPLEADS_HTTP_DEBUG=1` to log each Apple Ads HTTP attempt (method, redacted URL, status, content-type). Authorization headers are not logged.
+
 ## Architecture
 
 Layering is Terraform-agnostic client first, then Plugin Framework resources.

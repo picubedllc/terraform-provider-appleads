@@ -121,5 +121,8 @@ func TestCampaignModelFromClient_PreservesID(t *testing.T) {
 	if m.ID.ValueString() != "42" {
 		t.Fatalf("id = %s", m.ID.ValueString())
 	}
+	if !m.BudgetOrders.IsNull() {
+		t.Fatalf("budget_orders = %#v, want null", m.BudgetOrders)
+	}
 	_ = types.String{}
 }

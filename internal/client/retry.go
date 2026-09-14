@@ -9,10 +9,12 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"math"
 	"math/rand"
 	"net"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -115,6 +117,7 @@ func (t *RetryTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 		}
 
 		resp, err := t.base().RoundTrip(r)
+		logHTTPDebug(attempt, r, resp, err)
 		if err != nil {
 			lastErr = err
 			if !isRetryableNetErr(err) || attempt == cfg.MaxAttempts {
@@ -174,6 +177,31 @@ func (c RetryConfig) backoff(attempt int, resp *http.Response) time.Duration {
 	// Exponential backoff with full jitter: delay = random(0, min(max, base*2^(attempt-1)))
 	exp := math.Min(float64(c.MaxDelay), float64(c.BaseDelay)*math.Pow(2, float64(attempt-1)))
 	return time.Duration(c.RandFloat64() * exp)
+}
+
+// logHTTPDebug logs method, redacted URL, status, and content-type when APPLEADS_HTTP_DEBUG is set.
+func logHTTPDebug(attempt int, req *http.Request, resp *http.Response, err error) {
+	if os.Getenv("APPLEADS_HTTP_DEBUG") == "" {
+		return
+	}
+	url := ""
+	method := ""
+	if req != nil {
+		method = req.Method
+		url = req.URL.Redacted()
+	}
+	if err != nil {
+		log.Printf("appleads http: attempt=%d %s %s err=%v", attempt, method, url, err)
+		return
+	}
+	if resp == nil {
+		log.Printf("appleads http: attempt=%d %s %s resp=<nil>", attempt, method, url)
+		return
+	}
+	log.Printf("appleads http: attempt=%d %s %s status=%d ct=%q request_id=%q server=%q",
+		attempt, method, url, resp.StatusCode, resp.Header.Get("Content-Type"),
+		firstHeader(resp, HeaderRequestID, "X-Request-ID", "Request-Id"),
+		resp.Header.Get("Server"))
 }
 
 func isRetryableStatus(code int) bool {

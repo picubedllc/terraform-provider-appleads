@@ -19,7 +19,7 @@ import (
 )
 
 // DefaultBaseURL is the Apple Ads Campaign Management API v5 base URL.
-const DefaultBaseURL = "https://api.searchads.apple.com/api/v5"
+const DefaultBaseURL = "https://api.searchads.apple.com/api/v5/"
 
 // TokenSource provides bearer access tokens for authenticated requests.
 // Auth implementations (OAuth) satisfy this interface independently of the client.
@@ -102,6 +102,28 @@ func New(opts ...Option) (*Client, error) {
 	return c, nil
 }
 
+// joinAPIPath appends path under the API base URL.
+func joinAPIPath(base *url.URL, path string) *url.URL {
+	out := *base
+	out.RawQuery = ""
+	out.Fragment = ""
+	path = strings.TrimPrefix(path, "/")
+	basePath := strings.TrimSuffix(out.Path, "/")
+	if path == "" {
+		out.Path = basePath
+		if out.Path == "" {
+			out.Path = "/"
+		}
+		return &out
+	}
+	if basePath == "" {
+		out.Path = "/" + path
+	} else {
+		out.Path = basePath + "/" + path
+	}
+	return &out
+}
+
 // DoJSON performs an HTTP request with JSON request/response handling.
 // body may be nil. out may be nil when no response body is expected.
 func (c *Client) DoJSON(ctx context.Context, method, path string, body any, out any) error {
@@ -118,11 +140,7 @@ func (c *Client) do(ctx context.Context, method, path string, query url.Values, 
 		return fmt.Errorf("context is required")
 	}
 
-	rel, err := url.Parse(strings.TrimPrefix(path, "/"))
-	if err != nil {
-		return fmt.Errorf("parse path: %w", err)
-	}
-	u := c.baseURL.ResolveReference(rel)
+	u := joinAPIPath(c.baseURL, path)
 	if query != nil {
 		u.RawQuery = query.Encode()
 	}
