@@ -39,6 +39,12 @@ type AdGroup struct {
 	PricingModel           string               `json:"pricingModel,omitempty"`
 }
 
+// PricingModel values for AdGroup.PricingModel (Apple Ads Campaign Management API v5).
+const (
+	PricingModelCPC = "CPC" // cost per tap
+	PricingModelCPM = "CPM" // cost per thousand impressions
+)
+
 // TargetingDimensions holds ad group audience targeting.
 type TargetingDimensions struct {
 	Age         *AgeTarget         `json:"age,omitempty"`
@@ -101,7 +107,7 @@ func (c *Client) CreateAdGroup(ctx context.Context, campaignID int64, in *AdGrou
 	}
 	payload := *in
 	if strings.TrimSpace(payload.PricingModel) == "" {
-		payload.PricingModel = "CPC"
+		payload.PricingModel = PricingModelCPC
 	}
 	if strings.TrimSpace(payload.StartTime) == "" {
 		payload.StartTime = time.Now().UTC().Format("2006-01-02T15:04:05.000")

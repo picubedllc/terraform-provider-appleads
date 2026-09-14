@@ -1,6 +1,6 @@
 ## Unreleased
 
-- Send `pricingModel=CPC` and `startTime` on ad group create when omitted.
+- Send `pricingModel` and `startTime` on ad group create when omitted. Terraform `pricing_model` accepts `CPC` or `CPM` and defaults to `CPC`.
 - Join Campaign Management API request paths under `/api/v5`.
 - Treat an empty `budgetOrders` list as unset `budget_orders`.
 - Include HTTP status in Apple Ads API error diagnostics.

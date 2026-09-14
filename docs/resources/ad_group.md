@@ -4,7 +4,7 @@ page_title: "appleads_ad_group Resource - appleads"
 subcategory: ""
 description: |-
   Manages an Apple Ads ad group under a campaign.
-  Immutable: campaign_id — changing it returns an error (no RequiresReplace) so historical ad-group identity is preserved.
+  Immutable: campaign_id, pricing_model — changing them returns an error (no RequiresReplace) so historical ad-group identity is preserved.
   Mutable: name, status, default_bid_amount/default_bid_currency, cpa_goal_amount/cpa_goal_currency, automated_keywords_opt_in (Search Match), end_time.
   Computed: id, serving_status, display_status, modification_time.
   Audience targetingDimensions from Apple's API are not yet exposed in this resource schema.
@@ -14,7 +14,7 @@ description: |-
 
 Manages an Apple Ads ad group under a campaign.
 
-**Immutable:** `campaign_id` — changing it returns an error (no `RequiresReplace`) so historical ad-group identity is preserved.
+**Immutable:** `campaign_id`, `pricing_model` — changing them returns an error (no `RequiresReplace`) so historical ad-group identity is preserved.
 
 **Mutable:** `name`, `status`, `default_bid_amount`/`default_bid_currency`, `cpa_goal_amount`/`cpa_goal_currency`, `automated_keywords_opt_in` (Search Match), `end_time`.
 
@@ -35,7 +35,17 @@ resource "appleads_ad_group" "main" {
   status                    = "PAUSED"
   default_bid_amount        = "1.25"
   default_bid_currency      = "USD"
+  pricing_model             = "CPC"
   automated_keywords_opt_in = true
+}
+
+resource "appleads_ad_group" "today_tab" {
+  campaign_id          = appleads_campaign.display.id
+  name                 = "Today Tab"
+  status               = "PAUSED"
+  default_bid_amount   = "5.00"
+  default_bid_currency = "USD"
+  pricing_model        = "CPM"
 }
 ```
 
@@ -45,7 +55,7 @@ resource "appleads_ad_group" "main" {
 ### Required
 
 - `campaign_id` (String) Parent campaign id (immutable). Changing this after create returns an error; create a new appleads_ad_group instead.
-- `default_bid_amount` (String) Default max CPT bid as a decimal string (mutable).
+- `default_bid_amount` (String) Default bid amount as a decimal string (mutable). Units follow `pricing_model` (per tap for `CPC`, per thousand impressions for `CPM`).
 - `name` (String) Ad group name (mutable).
 
 ### Optional
@@ -55,6 +65,7 @@ resource "appleads_ad_group" "main" {
 - `cpa_goal_currency` (String) Currency for cpa_goal_amount.
 - `default_bid_currency` (String) Currency for default_bid_amount (e.g. USD).
 - `end_time` (String) Optional end time (ISO-8601, mutable).
+- `pricing_model` (String) Pricing model: `CPC` (cost per tap) or `CPM` (cost per thousand impressions). Defaults to `CPC`. Must match the parent campaign billing event (`TAPS` → `CPC`, `IMPRESSIONS` → `CPM`). Immutable after create.
 - `status` (String) ENABLED or PAUSED (mutable).
 
 ### Read-Only

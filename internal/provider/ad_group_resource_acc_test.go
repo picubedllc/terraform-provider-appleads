@@ -46,6 +46,7 @@ resource "appleads_ad_group" "test" {
 					resource.TestCheckResourceAttr("appleads_ad_group.test", "name", namePrefix+"-create"),
 					resource.TestCheckResourceAttr("appleads_ad_group.test", "status", "PAUSED"),
 					resource.TestCheckResourceAttr("appleads_ad_group.test", "default_bid_amount", "1.00"),
+					resource.TestCheckResourceAttr("appleads_ad_group.test", "pricing_model", "CPC"),
 					resource.TestCheckResourceAttrPair("appleads_ad_group.test", "campaign_id", "appleads_campaign.parent", "id"),
 				),
 			},

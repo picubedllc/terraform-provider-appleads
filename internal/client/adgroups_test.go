@@ -26,7 +26,7 @@ func TestCreateAdGroup_Success(t *testing.T) {
 		if body.Name != "Main" || body.DefaultBidAmount == nil || body.DefaultBidAmount.Amount != "1.25" {
 			t.Fatalf("body = %#v", body)
 		}
-		if body.PricingModel != "CPC" {
+		if body.PricingModel != PricingModelCPC {
 			t.Fatalf("pricingModel = %q", body.PricingModel)
 		}
 		if body.StartTime == "" {
@@ -75,7 +75,7 @@ func TestCreateAdGroup_KeepsExplicitPricingModel(t *testing.T) {
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 			t.Fatal(err)
 		}
-		if body.PricingModel != "CPM" {
+		if body.PricingModel != PricingModelCPM {
 			t.Fatalf("pricingModel = %q", body.PricingModel)
 		}
 		_ = json.NewEncoder(w).Encode(map[string]any{
@@ -91,12 +91,12 @@ func TestCreateAdGroup_KeepsExplicitPricingModel(t *testing.T) {
 	out, err := c.CreateAdGroup(context.Background(), 10, &AdGroupCreate{
 		Name:             "Main",
 		DefaultBidAmount: &Money{Amount: "1.00", Currency: "USD"},
-		PricingModel:     "CPM",
+		PricingModel:     PricingModelCPM,
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if out.PricingModel != "CPM" {
+	if out.PricingModel != PricingModelCPM {
 		t.Fatalf("out.PricingModel = %q", out.PricingModel)
 	}
 }

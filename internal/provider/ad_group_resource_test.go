@@ -31,6 +31,7 @@ func TestAdGroupModelFromClient(t *testing.T) {
 		AutomatedKeywordsOptIn: true,
 		EndTime:                "2026-12-01T00:00:00Z",
 		ModificationTime:       "2026-05-01T00:00:00Z",
+		PricingModel:           client.PricingModelCPC,
 	}
 	state := adGroupModelFromClient(got)
 	if state.ID.ValueString() != "77" || state.CampaignID.ValueString() != "10" {
@@ -41,6 +42,9 @@ func TestAdGroupModelFromClient(t *testing.T) {
 	}
 	if !state.AutomatedKeywordsOptIn.ValueBool() || state.EndTime.ValueString() != "2026-12-01T00:00:00Z" {
 		t.Fatalf("opts = %#v", state)
+	}
+	if state.PricingModel.ValueString() != client.PricingModelCPC {
+		t.Fatalf("pricing_model = %s", state.PricingModel.ValueString())
 	}
 }
 
@@ -56,6 +60,9 @@ func TestAdGroupModelFromClient_NullOptionals(t *testing.T) {
 	if !state.CPAGoalAmount.IsNull() || !state.EndTime.IsNull() {
 		t.Fatalf("expected null optionals: %#v", state)
 	}
+	if !state.PricingModel.IsNull() {
+		t.Fatalf("pricing_model = %#v, want null", state.PricingModel)
+	}
 }
 
 func TestAdGroupCreate_AndStateFromResponse(t *testing.T) {
@@ -69,7 +76,7 @@ func TestAdGroupCreate_AndStateFromResponse(t *testing.T) {
 		if body.DefaultBidAmount == nil || body.DefaultBidAmount.Amount != "1.50" {
 			t.Fatalf("bid = %#v", body.DefaultBidAmount)
 		}
-		if body.PricingModel != "CPC" {
+		if body.PricingModel != client.PricingModelCPC {
 			t.Fatalf("pricingModel = %q", body.PricingModel)
 		}
 		if body.StartTime == "" {
@@ -139,6 +146,14 @@ func TestAdGroupUpdate_ImmutableCampaignIDMessage(t *testing.T) {
 		"Automatically replacing this resource would delete historical ad group identity. " +
 		"Create a new appleads_ad_group explicitly instead."
 	if !strings.Contains(detail, "77") || !strings.Contains(msg, "campaign_id") {
+		t.Fatal("message contract drifted")
+	}
+}
+
+func TestAdGroupUpdate_ImmutablePricingModelMessage(t *testing.T) {
+	t.Parallel()
+	msg := `Cannot change immutable ad group field "pricing_model"`
+	if !strings.Contains(msg, "pricing_model") {
 		t.Fatal("message contract drifted")
 	}
 }
