@@ -142,38 +142,36 @@ func getReport[M any](ctx context.Context, c *Client, path string, req *Reportin
 	return env.Data.ReportingDataResponse.Row, nil
 }
 
-// GetCampaignReport fetches org-level campaign reports.
-// POST /reports/campaigns
+// GetCampaignReport fetches org-level campaign reports (POST /reports/campaigns).
 func (c *Client) GetCampaignReport(ctx context.Context, req *ReportingRequest) ([]ReportingRow[ReportingCampaignMetadata], error) {
 	return getReport[ReportingCampaignMetadata](ctx, c, "reports/campaigns", req)
 }
 
-// GetAdGroupReport fetches ad group reports within a campaign.
-// POST /reports/campaigns/{campaignId}/adgroups
+// GetAdGroupReport fetches ad group reports within a campaign (POST /reports/campaigns/{campaignId}/adgroups).
 func (c *Client) GetAdGroupReport(ctx context.Context, campaignID int64, req *ReportingRequest) ([]ReportingRow[ReportingAdGroupMetadata], error) {
 	path := fmt.Sprintf("reports/campaigns/%d/adgroups", campaignID)
 	return getReport[ReportingAdGroupMetadata](ctx, c, path, req)
 }
 
 // GetAdGroupKeywordReport fetches targeting-keyword reports within an ad group,
-// including insights.bidRecommendation when Apple returns it.
-// POST /reports/campaigns/{campaignId}/adgroups/{adgroupId}/keywords
+// including insights.bidRecommendation when Apple returns it
+// (POST /reports/campaigns/{campaignId}/adgroups/{adgroupId}/keywords).
 func (c *Client) GetAdGroupKeywordReport(ctx context.Context, campaignID, adGroupID int64, req *ReportingRequest) ([]ReportingRow[ReportingKeywordMetadata], error) {
 	path := fmt.Sprintf("reports/campaigns/%d/adgroups/%d/keywords", campaignID, adGroupID)
 	return getReport[ReportingKeywordMetadata](ctx, c, path, req)
 }
 
-// GetCampaignSearchTermReport fetches search-term reports for a campaign.
+// GetCampaignSearchTermReport fetches search-term reports for a campaign
+// (POST /reports/campaigns/{campaignId}/searchterms).
 // Apple requires timeZone=ORTZ. Terms typically appear only after 10 impressions.
-// POST /reports/campaigns/{campaignId}/searchterms
 func (c *Client) GetCampaignSearchTermReport(ctx context.Context, campaignID int64, req *ReportingRequest) ([]ReportingRow[ReportingSearchTermMetadata], error) {
 	path := fmt.Sprintf("reports/campaigns/%d/searchterms", campaignID)
 	return getReport[ReportingSearchTermMetadata](ctx, c, path, req)
 }
 
-// GetAdGroupSearchTermReport fetches search-term reports within an ad group.
+// GetAdGroupSearchTermReport fetches search-term reports within an ad group
+// (POST /reports/campaigns/{campaignId}/adgroups/{adgroupId}/searchterms).
 // Apple requires timeZone=ORTZ.
-// POST /reports/campaigns/{campaignId}/adgroups/{adgroupId}/searchterms
 func (c *Client) GetAdGroupSearchTermReport(ctx context.Context, campaignID, adGroupID int64, req *ReportingRequest) ([]ReportingRow[ReportingSearchTermMetadata], error) {
 	path := fmt.Sprintf("reports/campaigns/%d/adgroups/%d/searchterms", campaignID, adGroupID)
 	return getReport[ReportingSearchTermMetadata](ctx, c, path, req)

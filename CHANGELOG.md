@@ -2,7 +2,7 @@
 
 FEATURES:
 
-* Add `appleads_keyword_bid_recommendations` data source to read Apple's suggested CPT (`insights.bidRecommendation`) from keyword reports. Observational only: do not copy `suggested_bid_amount` into `appleads_keyword.bid_amount` ([PI-39](https://linear.app/picubed/issue/PI-39/add-appleads-keyword-bid-recommendations-data-source)).
+* Add `appleads_keyword_bid_recommendations` data source to read Apple's suggested CPT (`insights.bidRecommendation`) from keyword reports. Observational only: do not copy `suggested_bid_amount` into `appleads_keyword.bid_amount`.
 
 BUG FIXES:
 
