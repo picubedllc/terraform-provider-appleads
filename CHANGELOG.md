@@ -1,5 +1,9 @@
 ## Unreleased
 
+FEATURES:
+
+* Add `appleads_keyword_bid_recommendations` data source to read Apple's suggested CPT (`insights.bidRecommendation`) from keyword reports. Observational only: do not copy `suggested_bid_amount` into `appleads_keyword.bid_amount`.
+
 BUG FIXES:
 
 * Keep configured ad group `default_bid_amount` and keyword `bid_amount` decimal strings when Apple only changes scale (`1.00` → `1`). Omit keyword bids stay null in state even if Apple returns the ad group default.
