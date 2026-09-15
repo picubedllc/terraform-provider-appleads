@@ -167,6 +167,7 @@ func (c *Client) GetAdGroupKeywordReport(ctx context.Context, campaignID, adGrou
 // Apple requires timeZone=ORTZ. Terms typically appear only after 10 impressions.
 // POST /reports/campaigns/{campaignId}/searchterms
 func (c *Client) GetCampaignSearchTermReport(ctx context.Context, campaignID int64, req *ReportingRequest) ([]ReportingRow[ReportingSearchTermMetadata], error) {
+	req = forceSearchTermORTZ(req)
 	path := fmt.Sprintf("reports/campaigns/%d/searchterms", campaignID)
 	return getReport[ReportingSearchTermMetadata](ctx, c, path, req)
 }
@@ -175,6 +176,16 @@ func (c *Client) GetCampaignSearchTermReport(ctx context.Context, campaignID int
 // Apple requires timeZone=ORTZ.
 // POST /reports/campaigns/{campaignId}/adgroups/{adgroupId}/searchterms
 func (c *Client) GetAdGroupSearchTermReport(ctx context.Context, campaignID, adGroupID int64, req *ReportingRequest) ([]ReportingRow[ReportingSearchTermMetadata], error) {
+	req = forceSearchTermORTZ(req)
 	path := fmt.Sprintf("reports/campaigns/%d/adgroups/%d/searchterms", campaignID, adGroupID)
 	return getReport[ReportingSearchTermMetadata](ctx, c, path, req)
+}
+
+func forceSearchTermORTZ(req *ReportingRequest) *ReportingRequest {
+	if req == nil {
+		return DefaultReportingRequest("", "", "ORTZ")
+	}
+	cloned := *req
+	cloned.TimeZone = "ORTZ"
+	return &cloned
 }

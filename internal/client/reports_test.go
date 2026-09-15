@@ -162,7 +162,7 @@ func TestGetAdGroupSearchTermReport(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	req := DefaultReportingRequest("2026-09-01", "2026-09-14", "ORTZ")
+	req := DefaultReportingRequest("2026-09-01", "2026-09-14", "UTC")
 	rows, err := c.GetAdGroupSearchTermReport(context.Background(), 10, 20, req)
 	if err != nil {
 		t.Fatal(err)
