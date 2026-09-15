@@ -3,6 +3,7 @@
 FEATURES:
 
 * Add `appleads_keyword_bid_recommendations` data source to read Apple's suggested CPT (`insights.bidRecommendation`) from keyword reports. Observational only: do not copy `suggested_bid_amount` into `appleads_keyword.bid_amount` ([PI-39](https://linear.app/picubed/issue/PI-39/add-appleads-keyword-bid-recommendations-data-source)).
+* Add read-only `appleads_campaign_report`, `appleads_ad_group_report`, and `appleads_keyword_report` data sources for impressions, taps, TTR, spend, average CPT, installs, conversion rate, and CPA ([PI-37](https://linear.app/picubed/issue/PI-37/add-apple-ads-campaign-ad-group-and-keyword-report-data-sources)).
 
 BUG FIXES:
 
