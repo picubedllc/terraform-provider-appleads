@@ -159,7 +159,7 @@ func (r *campaignResource) Schema(ctx context.Context, req resource.SchemaReques
 			"countries_or_regions": schema.ListAttribute{
 				Required:            true,
 				ElementType:         types.StringType,
-				MarkdownDescription: "Country or region codes targeted by the campaign (immutable). Changing this after create returns an error; create a new appleads_campaign instead.",
+				MarkdownDescription: "Country or region codes targeted by the campaign (immutable). Order is not significant; Apple may return a different order and the provider keeps the configured order when the set is unchanged. Changing membership after create returns an error; create a new appleads_campaign instead.",
 				Validators: []validator.List{
 					listvalidator.SizeAtLeast(1),
 				},
@@ -168,7 +168,7 @@ func (r *campaignResource) Schema(ctx context.Context, req resource.SchemaReques
 				Optional:            true,
 				Computed:            true,
 				ElementType:         types.StringType,
-				MarkdownDescription: "Supply sources such as `APPSTORE_SEARCH_RESULTS` (immutable).",
+				MarkdownDescription: "Supply sources such as `APPSTORE_SEARCH_RESULTS` (immutable). Order is not significant; Apple may return a different order and the provider keeps the configured order when the set is unchanged.",
 				PlanModifiers: []planmodifier.List{
 					listplanmodifier.UseStateForUnknown(),
 				},
@@ -239,13 +239,18 @@ func (r *campaignResource) Create(ctx context.Context, req resource.CreateReques
 	}
 
 	// Populate state from the Apple response, keeping configured money strings
-	// when Apple only changes decimal formatting ("5.00" → "5").
+	// and list order when Apple only reformats those values ("5.00" → "5",
+	// or countries returned in a different order).
 	state, diags := campaignModelFromClient(ctx, created)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	state = overlayCampaignMoney(plan, state)
+	state, diags = overlayCampaignReported(ctx, plan, state)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }
 
@@ -293,7 +298,11 @@ func (r *campaignResource) Read(ctx context.Context, req resource.ReadRequest, r
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	newState = overlayCampaignMoney(state, newState)
+	newState, diags = overlayCampaignReported(ctx, state, newState)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
 	resp.Diagnostics.Append(resp.State.Set(ctx, &newState)...)
 }
 
@@ -340,7 +349,11 @@ func (r *campaignResource) Update(ctx context.Context, req resource.UpdateReques
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	newState = overlayCampaignMoney(plan, newState)
+	newState, diags = overlayCampaignReported(ctx, plan, newState)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
 	resp.Diagnostics.Append(resp.State.Set(ctx, &newState)...)
 }
 

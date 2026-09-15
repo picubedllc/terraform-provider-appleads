@@ -27,10 +27,10 @@ func detectImmutableCampaignChanges(ctx context.Context, state, plan campaignMod
 	if !stringAttrEqual(state.AdChannelType, plan.AdChannelType) {
 		changes = append(changes, immutableCampaignFieldChange{Field: "ad_channel_type"})
 	}
-	if !listAttrEqual(ctx, state.CountriesOrRegions, plan.CountriesOrRegions) {
+	if !listAttrSetEqual(ctx, state.CountriesOrRegions, plan.CountriesOrRegions) {
 		changes = append(changes, immutableCampaignFieldChange{Field: "countries_or_regions"})
 	}
-	if !listAttrEqual(ctx, state.SupplySources, plan.SupplySources) {
+	if !listAttrSetEqual(ctx, state.SupplySources, plan.SupplySources) {
 		changes = append(changes, immutableCampaignFieldChange{Field: "supply_sources"})
 	}
 	return changes
@@ -66,7 +66,9 @@ func stringAttrEqual(a, b types.String) bool {
 	return as == bs
 }
 
-func listAttrEqual(ctx context.Context, a, b types.List) bool {
+// listAttrSetEqual compares list membership, ignoring order. Apple may return
+// countries_or_regions and supply_sources in a different order than config.
+func listAttrSetEqual(ctx context.Context, a, b types.List) bool {
 	if a.IsUnknown() || b.IsUnknown() {
 		return true
 	}
@@ -75,15 +77,7 @@ func listAttrEqual(ctx context.Context, a, b types.List) bool {
 	if da.HasError() || db.HasError() {
 		return false
 	}
-	if len(as) != len(bs) {
-		return false
-	}
-	for i := range as {
-		if as[i] != bs[i] {
-			return false
-		}
-	}
-	return true
+	return stringSetEqual(as, bs)
 }
 
 func campaignUpdateFromPlan(ctx context.Context, plan campaignModel) (*client.CampaignUpdate, diag.Diagnostics) {

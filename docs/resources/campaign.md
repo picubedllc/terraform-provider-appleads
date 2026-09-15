@@ -18,7 +18,7 @@ Manages an Apple Ads campaign. Immutable fields never trigger automatic replacem
 ### Required
 
 - `adam_id` (String) Adam ID of the promoted app (immutable). Changing this after create returns an error; create a new appleads_campaign instead.
-- `countries_or_regions` (List of String) Country or region codes targeted by the campaign (immutable). Changing this after create returns an error; create a new appleads_campaign instead.
+- `countries_or_regions` (List of String) Country or region codes targeted by the campaign (immutable). Order is not significant; Apple may return a different order and the provider keeps the configured order when the set is unchanged. Changing membership after create returns an error; create a new appleads_campaign instead.
 - `name` (String) Campaign name (mutable).
 
 ### Optional
@@ -31,7 +31,7 @@ Manages an Apple Ads campaign. Immutable fields never trigger automatic replacem
 - `daily_budget_currency` (String) Currency code for daily_budget_amount (e.g. USD).
 - `end_time` (String) Campaign end time in ISO-8601 format (mutable).
 - `status` (String) User-set campaign status: `ENABLED` or `PAUSED` (mutable).
-- `supply_sources` (List of String) Supply sources such as `APPSTORE_SEARCH_RESULTS` (immutable).
+- `supply_sources` (List of String) Supply sources such as `APPSTORE_SEARCH_RESULTS` (immutable). Order is not significant; Apple may return a different order and the provider keeps the configured order when the set is unchanged.
 
 ### Read-Only
 
