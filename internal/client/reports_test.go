@@ -25,6 +25,9 @@ func TestGetAdGroupKeywordReport_BidRecommendation(t *testing.T) {
 		if body.StartTime != "2026-09-01" || body.EndTime != "2026-09-14" || body.TimeZone != "UTC" {
 			t.Fatalf("body = %#v", body)
 		}
+		if body.Selector == nil || len(body.Selector.OrderBy) != 1 || body.Selector.OrderBy[0].Field != "localSpend" || body.Selector.OrderBy[0].SortOrder != "DESCENDING" {
+			t.Fatalf("selector.orderBy = %#v", body.Selector)
+		}
 		_ = json.NewEncoder(w).Encode(map[string]any{
 			"data": map[string]any{
 				"reportingDataResponse": map[string]any{

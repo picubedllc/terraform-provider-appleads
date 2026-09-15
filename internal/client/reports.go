@@ -111,6 +111,10 @@ type reportingResponseBody[M any] struct {
 
 // DefaultReportingRequest builds a totals-only request for a date window.
 // Search-term reports must pass timeZone ORTZ.
+//
+// Apple requires selector.orderBy on reporting endpoints
+// (REQUIRED_INPUT_ORDER_BY_MISSING). localSpend is valid on campaign, ad group,
+// keyword, and search-term reports (Apple's keyword-within-ad-group example).
 func DefaultReportingRequest(startTime, endTime, timeZone string) *ReportingRequest {
 	if timeZone == "" {
 		timeZone = "UTC"
@@ -123,6 +127,7 @@ func DefaultReportingRequest(startTime, endTime, timeZone string) *ReportingRequ
 		ReturnGrandTotals:          false,
 		ReturnRecordsWithNoMetrics: true,
 		Selector: &Selector{
+			OrderBy:    []SelectorOrder{{Field: "localSpend", SortOrder: "DESCENDING"}},
 			Pagination: &SelectorPagination{Offset: 0, Limit: 1000},
 		},
 	}
