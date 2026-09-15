@@ -148,7 +148,7 @@ func (r *campaignResource) Schema(ctx context.Context, req resource.SchemaReques
 				MarkdownDescription: "Campaign end time in ISO-8601 format (mutable).",
 			},
 
-			// Immutable — intentionally NO RequiresReplace plan modifiers (PI-12).
+			// Immutable. Intentionally no RequiresReplace plan modifiers.
 			"adam_id": schema.StringAttribute{
 				Required:            true,
 				MarkdownDescription: "Adam ID of the promoted app (immutable). Changing this after create returns an error; create a new appleads_campaign instead.",

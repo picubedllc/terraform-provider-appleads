@@ -4,9 +4,9 @@ GitHub Releases for this provider are built and GPG-signed by GoReleaser when a
 semantic version tag is pushed. The Terraform Registry requires that checksums
 file to be signed with the public key registered for `picubedllc/appleads`.
 
-Do **not** cut `v0.1.0` until [PI-29](https://linear.app/picubed/issue/PI-29/publish-terraform-registry-provider)
-is unblocked. Registering the provider and signing key with HashiCorp is fine;
-publishing a version is not.
+Registering the provider and signing key with HashiCorp is separate from
+cutting a GitHub Release. Do not publish a Registry version until maintainers
+are ready.
 
 ## Versioning
 

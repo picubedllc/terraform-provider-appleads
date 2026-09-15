@@ -9,7 +9,7 @@ import (
 	"github.com/picubedllc/terraform-provider-appleads/internal/acctest"
 )
 
-// Read-only live campaign list. Allowlisting specific campaigns is PI-31.
+// Read-only live campaign list. Org-wide until tests can allowlist specific campaigns.
 func TestLiveCampaignsList(t *testing.T) {
 	c, _ := acctest.LiveClient(t)
 	page := acctest.RequireCampaignsPage(t, c)

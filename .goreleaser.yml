@@ -3,7 +3,7 @@
 #
 # Archives: terraform-provider-appleads_{version}_{os}_{arch}.zip
 # Binary inside each zip: terraform-provider-appleads_v{version}
-# Checksums + detached GPG signature are produced at release time (PI-25).
+# Checksums + detached GPG signature are produced at release time.
 version: 2
 before:
   hooks:

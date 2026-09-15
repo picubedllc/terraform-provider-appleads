@@ -54,7 +54,7 @@ internal/provider   Terraform resources and data sources
 internal/acctest    Shared live-test helpers (PreCheck, credentials, ACL probe)
 ```
 
-Established in [PI-2](https://linear.app/picubed/issue/PI-2/implement-apple-ads-api-client) through [PI-7](https://linear.app/picubed/issue/PI-7/add-provider-level-destructive-operation-safety-design):
+Client and provider layering:
 
 1. **`internal/client`** talks to `https://api.searchads.apple.com/api/v5`. It must not import Plugin Framework types.
 2. **Auth** (`auth.go`) mints an OAuth client-assertion JWT and exchanges it for a bearer token (`TokenSource`).
@@ -83,7 +83,7 @@ Unit-test the client against `httptest.NewServer` in `internal/client/*_test.go`
 
 ## Adding resources
 
-Follow `appleads_campaign` ([PI-9](https://linear.app/picubed/issue/PI-9/implement-appleads-campaign-schema) through [PI-15](https://linear.app/picubed/issue/PI-15/campaign-lifecycle-acceptance-tests)):
+Follow `appleads_campaign`:
 
 1. **Client types** — document mutable / immutable / computed on the Go struct (see `client.Campaign`).
 2. **Schema** — Plugin Framework schema with `MarkdownDescription` on every attribute.
@@ -98,7 +98,7 @@ Follow `appleads_campaign` ([PI-9](https://linear.app/picubed/issue/PI-9/impleme
 
 Apple campaign delete **archives** the campaign. Terraform `RequiresReplace` would destroy-then-create and throw away historical identity.
 
-Canonical example: [PI-12](https://linear.app/picubed/issue/PI-12/implement-safe-campaign-update) / `internal/provider/campaign_update.go`. Detect immutable plan vs state changes and return an error telling the practitioner to create a **new** resource. The same rule applies to ad groups (`campaign_id`, `pricing_model`), keywords (`ad_group_id`, `text`, `match_type`), and negative keywords (scope, `text`, `match_type`).
+Canonical example: `internal/provider/campaign_update.go`. Detect immutable plan vs state changes and return an error telling the practitioner to create a **new** resource. The same rule applies to ad groups (`campaign_id`, `pricing_model`), keywords (`ad_group_id`, `text`, `match_type`), and negative keywords (scope, `text`, `match_type`).
 
 Do not add `stringplanmodifier.RequiresReplace()` (or list equivalents) to those attributes.
 
@@ -135,7 +135,7 @@ Name acceptance objects with a `tf-acc-` prefix (campaigns use `tf-acc-campaign-
 - Set `CheckDestroy` so teardown actually archives/deletes in Apple when `allow_campaign_deletion = true`
 - Cover import and immutable-field rejection
 
-PR CI does **not** run these. The opt-in workflow is [PI-23](https://linear.app/picubed/issue/PI-23/add-acceptance-test-workflow):
+PR CI does **not** run these. Opt-in live coverage:
 
 - Read-only live tests: `.github/workflows/live-integration.yml` (`workflow_dispatch` + weekly cron, GitHub Environment `appleads-integration`)
 - Mutating ACC: `make testacc` locally (or a future dedicated workflow with a write-capable cert). Do not put API Account Manager credentials on `appleads-integration`.
@@ -146,16 +146,16 @@ PR CI does **not** run these. The opt-in workflow is [PI-23](https://linear.app/
 make generate
 ```
 
-This formats `examples/` and runs tfplugindocs (`tools/tools.go`, provider name `appleads`). CI fails if `make generate` produces a diff ([PI-21](https://linear.app/picubed/issue/PI-21/set-up-tfplugindocs), [PI-22](https://linear.app/picubed/issue/PI-22/add-ci)).
+This formats `examples/` and runs tfplugindocs (`tools/tools.go`, provider name `appleads`). CI fails if `make generate` produces a diff.
 
 Hand-written decision docs stay under `docs/decisions/`. Regenerated resource pages are `docs/resources/` and `docs/data-sources/`.
 
 ## Pull requests
 
-- CI must pass: format, vet, lint, unit tests, `make generate` ([PI-22](https://linear.app/picubed/issue/PI-22/add-ci)).
+- CI must pass: format, vet, lint, unit tests, `make generate`.
 - Run `make generate` and commit the result when schema or examples change.
 - New resources need unit tests **and** acceptance tests before merge (ACC may be skip-gated; the test file still has to exist and be correct).
 - Do not add Apple credentials, GPG material, or `.p8` keys to the repo or to PR CI.
-- Link the Linear issue in the PR body (`Closes [PI-NN](https://linear.app/picubed/issue/…)`).
+- Describe the change in the PR body. Do not link private issue trackers.
 
 Releases (semver tags, GPG signing) are documented in [docs/RELEASING.md](docs/RELEASING.md).

@@ -1,8 +1,7 @@
 # Decision: Campaign deletion safety
 
 Status: Accepted  
-Date: 2026-09-09  
-Issue: [PI-7](https://linear.app/picubed/issue/PI-7/add-provider-level-destructive-operation-safety-design)
+Date: 2026-09-09
 
 ## Context
 
