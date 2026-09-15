@@ -37,7 +37,7 @@ type negativeKeywordResource struct {
 // negativeKeywordModel maps appleads_negative_keyword.
 //
 // Exactly one of campaign_id or ad_group_id must be set in configuration
-// (Ivan/PI-18 decision: single resource type for both scopes).
+// (single resource type for both campaign and ad group scopes).
 //
 // Immutable: campaign_id, ad_group_id, text, match_type (Update errors; no RequiresReplace).
 // Mutable: status

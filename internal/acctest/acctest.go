@@ -138,7 +138,7 @@ func LiveClient(t *testing.T) (*client.Client, client.Credentials) {
 }
 
 // RequireCampaignsPage fetches one page of campaigns (read-only).
-// Org-wide listing is temporary; campaign allowlisting is tracked in PI-31.
+// Org-wide listing is temporary until live tests can allowlist specific campaigns.
 func RequireCampaignsPage(t *testing.T, c *client.Client) *client.PageResult[client.Campaign] {
 	t.Helper()
 

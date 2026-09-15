@@ -13,7 +13,7 @@ import (
 	"github.com/shopspring/decimal"
 )
 
-// Keep schema-stage model referenced until CRUD (PI-10+) wires it into lifecycle methods.
+// Keep schema-stage model referenced until CRUD wires it into lifecycle methods.
 var _ = campaignModel{}
 
 func TestCampaignResource_SchemaMutableImmutableClassification(t *testing.T) {
