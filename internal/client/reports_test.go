@@ -47,7 +47,7 @@ func TestGetAdGroupKeywordReport_BidRecommendation(t *testing.T) {
 							"matchType":     "EXACT",
 							"bidAmount":     map[string]string{"amount": "0.05", "currency": "USD"},
 							"adGroupId":     20,
-							"adGroupName":   "US_wordsync_generic",
+							"adGroupName":   "Generic Search",
 						},
 						"insights": map[string]any{
 							"bidRecommendation": map[string]any{
@@ -104,7 +104,7 @@ func TestGetCampaignReport(t *testing.T) {
 			"data": map[string]any{
 				"reportingDataResponse": map[string]any{
 					"row": []map[string]any{{
-						"metadata": map[string]any{"campaignId": 7, "campaignName": "US_wordsync_generic"},
+						"metadata": map[string]any{"campaignId": 7, "campaignName": "Generic Search"},
 						"total":    map[string]any{"impressions": 4, "taps": 1},
 					}},
 				},
@@ -121,7 +121,7 @@ func TestGetCampaignReport(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(rows) != 1 || rows[0].Metadata.CampaignName != "US_wordsync_generic" || rows[0].Total.Impressions != 4 {
+	if len(rows) != 1 || rows[0].Metadata.CampaignName != "Generic Search" || rows[0].Total.Impressions != 4 {
 		t.Fatalf("rows = %#v", rows)
 	}
 }
@@ -145,9 +145,9 @@ func TestGetAdGroupSearchTermReport(t *testing.T) {
 				"reportingDataResponse": map[string]any{
 					"row": []map[string]any{{
 						"metadata": map[string]any{
-							"searchTermText": "blank slate party",
+							"searchTermText": "word party game",
 							"keywordId":      5,
-							"keyword":        "blank slate",
+							"keyword":        "word game",
 							"matchType":      "BROAD",
 						},
 						"total": map[string]any{"impressions": 11, "taps": 2, "totalInstalls": 1},
@@ -167,7 +167,7 @@ func TestGetAdGroupSearchTermReport(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(rows) != 1 || rows[0].Metadata.SearchTermText != "blank slate party" {
+	if len(rows) != 1 || rows[0].Metadata.SearchTermText != "word party game" {
 		t.Fatalf("rows = %#v", rows)
 	}
 }

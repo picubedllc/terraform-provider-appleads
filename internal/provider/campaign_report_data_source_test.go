@@ -28,7 +28,7 @@ func TestCampaignReportDataSource_UnitRead(t *testing.T) {
 			"data": map[string]any{
 				"reportingDataResponse": map[string]any{
 					"row": []map[string]any{{
-						"metadata": map[string]any{"campaignId": 7, "campaignName": "US_wordsync_generic"},
+						"metadata": map[string]any{"campaignId": 7, "campaignName": "Generic Search"},
 						"total": map[string]any{
 							"impressions":    10,
 							"taps":           2,
@@ -111,7 +111,7 @@ func TestCampaignReportDataSource_UnitRead(t *testing.T) {
 	if diags.HasError() {
 		t.Fatalf("state get: %v", diags)
 	}
-	if len(state.Campaigns) != 1 || state.Campaigns[0].Name.ValueString() != "US_wordsync_generic" {
+	if len(state.Campaigns) != 1 || state.Campaigns[0].Name.ValueString() != "Generic Search" {
 		t.Fatalf("state = %#v", state)
 	}
 	if state.Campaigns[0].Impressions.ValueInt64() != 10 || state.Campaigns[0].LocalSpendAmount.ValueString() != "0.10" {
