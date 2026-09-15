@@ -9,6 +9,7 @@ import (
 	"strconv"
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
+	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
@@ -37,23 +38,24 @@ type adGroupResource struct {
 // adGroupModel maps appleads_ad_group.
 //
 // Immutable: campaign_id, pricing_model (no RequiresReplace — Update errors instead).
-// Mutable: name, status, default_bid_amount, cpa_goal_amount, automated_keywords_opt_in, start_time, end_time.
+// Mutable: name, status, default_bid_amount, cpa_goal_amount, automated_keywords_opt_in, start_time, end_time, targeting_dimensions.
 type adGroupModel struct {
-	ID                     types.String `tfsdk:"id"`
-	CampaignID             types.String `tfsdk:"campaign_id"`
-	Name                   types.String `tfsdk:"name"`
-	Status                 types.String `tfsdk:"status"`
-	DefaultBidAmount       types.String `tfsdk:"default_bid_amount"`
-	DefaultBidCurrency     types.String `tfsdk:"default_bid_currency"`
-	CPAGoalAmount          types.String `tfsdk:"cpa_goal_amount"`
-	CPAGoalCurrency        types.String `tfsdk:"cpa_goal_currency"`
-	AutomatedKeywordsOptIn types.Bool   `tfsdk:"automated_keywords_opt_in"`
-	PricingModel           types.String `tfsdk:"pricing_model"`
-	StartTime              types.String `tfsdk:"start_time"`
-	EndTime                types.String `tfsdk:"end_time"`
-	ServingStatus          types.String `tfsdk:"serving_status"`
-	DisplayStatus          types.String `tfsdk:"display_status"`
-	ModificationTime       types.String `tfsdk:"modification_time"`
+	ID                     types.String              `tfsdk:"id"`
+	CampaignID             types.String              `tfsdk:"campaign_id"`
+	Name                   types.String              `tfsdk:"name"`
+	Status                 types.String              `tfsdk:"status"`
+	DefaultBidAmount       types.String              `tfsdk:"default_bid_amount"`
+	DefaultBidCurrency     types.String              `tfsdk:"default_bid_currency"`
+	CPAGoalAmount          types.String              `tfsdk:"cpa_goal_amount"`
+	CPAGoalCurrency        types.String              `tfsdk:"cpa_goal_currency"`
+	AutomatedKeywordsOptIn types.Bool                `tfsdk:"automated_keywords_opt_in"`
+	PricingModel           types.String              `tfsdk:"pricing_model"`
+	StartTime              types.String              `tfsdk:"start_time"`
+	EndTime                types.String              `tfsdk:"end_time"`
+	TargetingDimensions    *targetingDimensionsModel `tfsdk:"targeting_dimensions"`
+	ServingStatus          types.String              `tfsdk:"serving_status"`
+	DisplayStatus          types.String              `tfsdk:"display_status"`
+	ModificationTime       types.String              `tfsdk:"modification_time"`
 }
 
 func (r *adGroupResource) Metadata(ctx context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
@@ -64,9 +66,10 @@ func (r *adGroupResource) Schema(ctx context.Context, req resource.SchemaRequest
 	resp.Schema = schema.Schema{
 		MarkdownDescription: "Manages an Apple Ads ad group under a campaign.\n\n" +
 			"**Immutable:** `campaign_id`, `pricing_model` — changing them returns an error (no `RequiresReplace`) so historical ad-group identity is preserved.\n\n" +
-			"**Mutable:** `name`, `status`, `default_bid_amount`/`default_bid_currency`, `cpa_goal_amount`/`cpa_goal_currency`, `automated_keywords_opt_in` (Search Match), `start_time`, `end_time`.\n\n" +
+			"**Mutable:** `name`, `status`, `default_bid_amount`/`default_bid_currency`, `cpa_goal_amount`/`cpa_goal_currency`, `automated_keywords_opt_in` (Search Match), `start_time`, `end_time`, `targeting_dimensions`.\n\n" +
 			"**Computed:** `id`, `serving_status`, `display_status`, `modification_time`.\n\n" +
-			"Audience `targetingDimensions` from Apple's API are not yet exposed in this resource schema.",
+			"City and other audience targeting is `targeting_dimensions` (Apple `targetingDimensions`). " +
+			"Geo targeting only works on single-country campaigns; look up locality IDs with `appleads_geolocations`.",
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
 				Computed:            true,
@@ -130,6 +133,7 @@ func (r *adGroupResource) Schema(ctx context.Context, req resource.SchemaRequest
 				Optional:            true,
 				MarkdownDescription: "Optional end time (ISO-8601, mutable).",
 			},
+			"targeting_dimensions": targetingDimensionsAttribute(),
 			"serving_status": schema.StringAttribute{
 				Computed:            true,
 				MarkdownDescription: "Effective serving status from Apple Ads.",
@@ -200,12 +204,27 @@ func (r *adGroupResource) Create(ctx context.Context, req resource.CreateRequest
 	if !plan.EndTime.IsNull() && !plan.EndTime.IsUnknown() {
 		in.EndTime = plan.EndTime.ValueString()
 	}
+	td, diags := targetingDimensionsFromModel(ctx, plan.TargetingDimensions)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	in.TargetingDimensions = td
 	created, err := r.client.CreateAdGroup(ctx, campaignID, in)
 	if err != nil {
 		resp.Diagnostics.Append(apiErrorDiagnostic("Unable to create Apple Ads ad group", err)...)
 		return
 	}
-	state := overlayAdGroupMoney(plan, adGroupModelFromClient(created))
+	state, diags := adGroupModelFromClient(ctx, created)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	state, diags = overlayAdGroupReported(ctx, plan, state)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }
 
@@ -234,7 +253,16 @@ func (r *adGroupResource) Read(ctx context.Context, req resource.ReadRequest, re
 		resp.State.RemoveResource(ctx)
 		return
 	}
-	newState := overlayAdGroupMoney(state, adGroupModelFromClient(got))
+	newState, diags := adGroupModelFromClient(ctx, got)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	newState, diags = overlayAdGroupReported(ctx, state, newState)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
 	resp.Diagnostics.Append(resp.State.Set(ctx, &newState)...)
 }
 
@@ -295,12 +323,32 @@ func (r *adGroupResource) Update(ctx context.Context, req resource.UpdateRequest
 	if !plan.EndTime.IsNull() && !plan.EndTime.IsUnknown() {
 		upd.EndTime = plan.EndTime.ValueString()
 	}
+	switch {
+	case plan.TargetingDimensions != nil:
+		td, d := targetingDimensionsFromModel(ctx, plan.TargetingDimensions)
+		resp.Diagnostics.Append(d...)
+		if resp.Diagnostics.HasError() {
+			return
+		}
+		upd.TargetingDimensions = td
+	case state.TargetingDimensions != nil:
+		upd.ClearTargetingDimensions = true
+	}
 	updated, err := r.client.UpdateAdGroup(ctx, campaignID, adGroupID, upd)
 	if err != nil {
 		resp.Diagnostics.Append(apiErrorDiagnostic("Unable to update Apple Ads ad group", err)...)
 		return
 	}
-	newState := overlayAdGroupMoney(plan, adGroupModelFromClient(updated))
+	newState, diags := adGroupModelFromClient(ctx, updated)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	newState, diags = overlayAdGroupReported(ctx, plan, newState)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
 	resp.Diagnostics.Append(resp.State.Set(ctx, &newState)...)
 }
 
@@ -338,11 +386,16 @@ func (r *adGroupResource) ImportState(ctx context.Context, req resource.ImportSt
 		resp.Diagnostics.AddError("Cannot import deleted ad group", fmt.Sprintf("Ad group %d is deleted.", adGroupID))
 		return
 	}
-	state := adGroupModelFromClient(got)
+	state, diags := adGroupModelFromClient(ctx, got)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }
 
-func adGroupModelFromClient(a *client.AdGroup) adGroupModel {
+func adGroupModelFromClient(ctx context.Context, a *client.AdGroup) (adGroupModel, diag.Diagnostics) {
+	var diags diag.Diagnostics
 	m := adGroupModel{
 		ID:                     types.StringValue(strconv.FormatInt(a.ID, 10)),
 		CampaignID:             types.StringValue(strconv.FormatInt(a.CampaignID, 10)),
@@ -379,5 +432,8 @@ func adGroupModelFromClient(a *client.AdGroup) adGroupModel {
 	} else {
 		m.EndTime = types.StringNull()
 	}
-	return m
+	td, d := targetingDimensionsToModel(ctx, a.TargetingDimensions)
+	diags.Append(d...)
+	m.TargetingDimensions = td
+	return m, diags
 }

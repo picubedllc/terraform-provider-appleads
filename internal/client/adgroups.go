@@ -5,6 +5,7 @@ package client
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -44,14 +45,21 @@ const (
 	PricingModelCPM = "CPM" // cost per thousand impressions
 )
 
-// TargetingDimensions holds ad group audience targeting.
+// TargetingDimensions holds ad group audience targeting (Apple Ads API v5).
+//
+// Geo targeting (country, adminArea, locality) only works on campaigns with a
+// single countriesOrRegions value. Resolve IDs with SearchGeoLocations:
+// country is ISO alpha-2 (US), adminArea is Country|AdminArea (US|NY),
+// locality is Country|AdminArea|Locality (US|NY|New York).
 type TargetingDimensions struct {
-	Age         *AgeTarget         `json:"age,omitempty"`
-	Gender      *GenderTarget      `json:"gender,omitempty"`
-	DeviceClass *DeviceClassTarget `json:"deviceClass,omitempty"`
-	Country     *LocalityTarget    `json:"country,omitempty"`
-	AdminArea   *LocalityTarget    `json:"adminArea,omitempty"`
-	Locality    *LocalityTarget    `json:"locality,omitempty"`
+	Age            *AgeTarget            `json:"age,omitempty"`
+	Gender         *GenderTarget         `json:"gender,omitempty"`
+	DeviceClass    *DeviceClassTarget    `json:"deviceClass,omitempty"`
+	Country        *LocalityTarget       `json:"country,omitempty"`
+	AdminArea      *LocalityTarget       `json:"adminArea,omitempty"`
+	Locality       *LocalityTarget       `json:"locality,omitempty"`
+	Daypart        *DaypartTarget        `json:"daypart,omitempty"`
+	AppDownloaders *AppDownloadersTarget `json:"appDownloaders,omitempty"`
 }
 
 type AgeTarget struct {
@@ -69,6 +77,51 @@ type DeviceClassTarget struct {
 }
 type LocalityTarget struct {
 	Included []string `json:"included,omitempty"`
+}
+
+// DaypartTarget limits serving to hours of the week in the user's time zone.
+// Hours are 0–167 starting Sunday 12:00 AM (Monday 1:00 AM is 25).
+type DaypartTarget struct {
+	UserTime *DaypartUserTime `json:"userTime,omitempty"`
+}
+
+type DaypartUserTime struct {
+	Included []int `json:"included,omitempty"`
+}
+
+// AppDownloadersTarget includes or excludes users by owned-app Adam IDs.
+type AppDownloadersTarget struct {
+	Included []string `json:"included,omitempty"`
+	Excluded []string `json:"excluded,omitempty"`
+}
+
+// targetingDimensionsUpdate always serializes every TargetingDimensions key.
+// Apple requires all dimensions on ad group update; unspecified keys are JSON null.
+type targetingDimensionsUpdate struct {
+	Age            *AgeTarget            `json:"age"`
+	Gender         *GenderTarget         `json:"gender"`
+	DeviceClass    *DeviceClassTarget    `json:"deviceClass"`
+	Country        *LocalityTarget       `json:"country"`
+	AdminArea      *LocalityTarget       `json:"adminArea"`
+	Locality       *LocalityTarget       `json:"locality"`
+	Daypart        *DaypartTarget        `json:"daypart"`
+	AppDownloaders *AppDownloadersTarget `json:"appDownloaders"`
+}
+
+func (t *TargetingDimensions) updateWire() targetingDimensionsUpdate {
+	if t == nil {
+		return targetingDimensionsUpdate{}
+	}
+	return targetingDimensionsUpdate{
+		Age:            t.Age,
+		Gender:         t.Gender,
+		DeviceClass:    t.DeviceClass,
+		Country:        t.Country,
+		AdminArea:      t.AdminArea,
+		Locality:       t.Locality,
+		Daypart:        t.Daypart,
+		AppDownloaders: t.AppDownloaders,
+	}
 }
 
 // AdGroupCreate is POST /campaigns/{id}/adgroups body.
@@ -89,15 +142,58 @@ type AdGroupCreate struct {
 }
 
 // AdGroupUpdate is the mutable subset for PUT.
+//
+// TargetingDimensions, when non-nil, is sent with every Apple dimension key
+// present (unspecified nested dimensions are JSON null). Set
+// ClearTargetingDimensions to send targetingDimensions: null and clear
+// previously set audience targeting. Omit both to leave targeting unchanged.
 type AdGroupUpdate struct {
-	Name                   string               `json:"name,omitempty"`
-	DefaultBidAmount       *Money               `json:"defaultBidAmount,omitempty"`
-	CPAGoal                *Money               `json:"cpaGoal,omitempty"`
-	AutomatedKeywordsOptIn *bool                `json:"automatedKeywordsOptIn,omitempty"`
-	Status                 string               `json:"status,omitempty"`
-	StartTime              string               `json:"startTime,omitempty"`
-	EndTime                string               `json:"endTime,omitempty"`
-	TargetingDimensions    *TargetingDimensions `json:"targetingDimensions,omitempty"`
+	Name                     string               `json:"name,omitempty"`
+	DefaultBidAmount         *Money               `json:"defaultBidAmount,omitempty"`
+	CPAGoal                  *Money               `json:"cpaGoal,omitempty"`
+	AutomatedKeywordsOptIn   *bool                `json:"automatedKeywordsOptIn,omitempty"`
+	Status                   string               `json:"status,omitempty"`
+	StartTime                string               `json:"startTime,omitempty"`
+	EndTime                  string               `json:"endTime,omitempty"`
+	TargetingDimensions      *TargetingDimensions `json:"targetingDimensions,omitempty"`
+	ClearTargetingDimensions bool                 `json:"-"`
+}
+
+// MarshalJSON encodes the update payload. When TargetingDimensions is set,
+// every targetingDimensions key is included (null for unset nested dimensions)
+// because Apple requires a full object on targeting updates. ClearTargetingDimensions
+// serializes targetingDimensions as JSON null.
+func (u AdGroupUpdate) MarshalJSON() ([]byte, error) {
+	type wire struct {
+		Name                   string          `json:"name,omitempty"`
+		DefaultBidAmount       *Money          `json:"defaultBidAmount,omitempty"`
+		CPAGoal                *Money          `json:"cpaGoal,omitempty"`
+		AutomatedKeywordsOptIn *bool           `json:"automatedKeywordsOptIn,omitempty"`
+		Status                 string          `json:"status,omitempty"`
+		StartTime              string          `json:"startTime,omitempty"`
+		EndTime                string          `json:"endTime,omitempty"`
+		TargetingDimensions    json.RawMessage `json:"targetingDimensions,omitempty"`
+	}
+	w := wire{
+		Name:                   u.Name,
+		DefaultBidAmount:       u.DefaultBidAmount,
+		CPAGoal:                u.CPAGoal,
+		AutomatedKeywordsOptIn: u.AutomatedKeywordsOptIn,
+		Status:                 u.Status,
+		StartTime:              u.StartTime,
+		EndTime:                u.EndTime,
+	}
+	switch {
+	case u.ClearTargetingDimensions:
+		w.TargetingDimensions = json.RawMessage("null")
+	case u.TargetingDimensions != nil:
+		b, err := json.Marshal(u.TargetingDimensions.updateWire())
+		if err != nil {
+			return nil, err
+		}
+		w.TargetingDimensions = b
+	}
+	return json.Marshal(w)
 }
 
 type adGroupUpdateEnvelope struct {

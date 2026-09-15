@@ -214,6 +214,14 @@ func overlayAdGroupMoney(configured, reported adGroupModel) adGroupModel {
 	return reported
 }
 
+// overlayAdGroupReported keeps configured money scale and targeting dimensions
+// when Apple only reformats those values, so Create/Read/Update do not fail
+// Terraform's after-apply consistency check.
+func overlayAdGroupReported(ctx context.Context, configured, reported adGroupModel) (adGroupModel, diag.Diagnostics) {
+	reported = overlayAdGroupMoney(configured, reported)
+	return overlayAdGroupTargeting(ctx, configured, reported)
+}
+
 // overlayKeywordMoney keeps a configured bid's decimal scale. When bid_amount
 // is omitted, state stays null even if Apple returns the ad group default.
 func overlayKeywordMoney(configured, reported keywordModel) keywordModel {

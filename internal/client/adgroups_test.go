@@ -324,3 +324,182 @@ func TestCreateAdGroup_APIValidationError(t *testing.T) {
 		t.Fatalf("message = %s", apiErr.Message)
 	}
 }
+
+func TestCreateAdGroup_SendsLocalityTargeting(t *testing.T) {
+	t.Parallel()
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body AdGroupCreate
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Fatal(err)
+		}
+		if body.TargetingDimensions == nil || body.TargetingDimensions.Locality == nil {
+			t.Fatalf("targetingDimensions = %#v", body.TargetingDimensions)
+		}
+		if got := body.TargetingDimensions.Locality.Included; len(got) != 1 || got[0] != "US|NY|New York" {
+			t.Fatalf("locality = %#v", body.TargetingDimensions.Locality)
+		}
+		if body.TargetingDimensions.Age != nil || body.TargetingDimensions.Daypart != nil {
+			t.Fatalf("omitted dimensions should be absent on create: %#v", body.TargetingDimensions)
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"data": map[string]any{
+				"id":         77,
+				"campaignId": 10,
+				"name":       body.Name,
+				"targetingDimensions": map[string]any{
+					"age":         nil,
+					"gender":      nil,
+					"country":     nil,
+					"adminArea":   nil,
+					"locality":    map[string]any{"included": []string{"US|NY|New York"}},
+					"deviceClass": map[string]any{"included": []string{"IPHONE", "IPAD"}},
+					"daypart":     nil,
+					"appDownloaders": map[string]any{
+						"included": []any{},
+						"excluded": []any{},
+					},
+				},
+			},
+		})
+	}))
+	t.Cleanup(srv.Close)
+
+	c, err := New(WithBaseURL(srv.URL))
+	if err != nil {
+		t.Fatal(err)
+	}
+	out, err := c.CreateAdGroup(context.Background(), 10, &AdGroupCreate{
+		Name:             "NYC",
+		DefaultBidAmount: &Money{Amount: "1.00", Currency: "USD"},
+		PricingModel:     PricingModelCPC,
+		StartTime:        "2026-01-01T00:00:00.000",
+		TargetingDimensions: &TargetingDimensions{
+			Locality: &LocalityTarget{Included: []string{"US|NY|New York"}},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out.TargetingDimensions == nil || out.TargetingDimensions.Locality == nil {
+		t.Fatalf("out.TargetingDimensions = %#v", out.TargetingDimensions)
+	}
+	if got := out.TargetingDimensions.Locality.Included; len(got) != 1 || got[0] != "US|NY|New York" {
+		t.Fatalf("locality = %#v", out.TargetingDimensions.Locality)
+	}
+}
+
+func TestUpdateAdGroup_TargetingDimensionsSendsNullsForUnset(t *testing.T) {
+	t.Parallel()
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var raw map[string]any
+		if err := json.NewDecoder(r.Body).Decode(&raw); err != nil {
+			t.Fatal(err)
+		}
+		ag, ok := raw["adGroup"].(map[string]any)
+		if !ok {
+			t.Fatalf("envelope = %#v", raw)
+		}
+		td, ok := ag["targetingDimensions"].(map[string]any)
+		if !ok {
+			t.Fatalf("targetingDimensions = %#v", ag["targetingDimensions"])
+		}
+		for _, key := range []string{"age", "gender", "deviceClass", "country", "adminArea", "daypart", "appDownloaders"} {
+			if td[key] != nil {
+				t.Fatalf("%s = %#v, want null", key, td[key])
+			}
+		}
+		loc, ok := td["locality"].(map[string]any)
+		if !ok {
+			t.Fatalf("locality = %#v", td["locality"])
+		}
+		included, ok := loc["included"].([]any)
+		if !ok || len(included) != 1 || included[0] != "US|NY|New York" {
+			t.Fatalf("locality.included = %#v", loc["included"])
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"data": map[string]any{"id": 77, "campaignId": 10, "name": "NYC"},
+		})
+	}))
+	t.Cleanup(srv.Close)
+
+	c, err := New(WithBaseURL(srv.URL))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := c.UpdateAdGroup(context.Background(), 10, 77, &AdGroupUpdate{
+		Name: "NYC",
+		TargetingDimensions: &TargetingDimensions{
+			Locality: &LocalityTarget{Included: []string{"US|NY|New York"}},
+		},
+	}); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestUpdateAdGroup_ClearTargetingDimensions(t *testing.T) {
+	t.Parallel()
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var raw map[string]any
+		if err := json.NewDecoder(r.Body).Decode(&raw); err != nil {
+			t.Fatal(err)
+		}
+		ag, ok := raw["adGroup"].(map[string]any)
+		if !ok {
+			t.Fatalf("envelope = %#v", raw)
+		}
+		if ag["targetingDimensions"] != nil {
+			t.Fatalf("targetingDimensions = %#v, want JSON null", ag["targetingDimensions"])
+		}
+		if _, present := ag["targetingDimensions"]; !present {
+			t.Fatal("targetingDimensions key missing; want explicit null")
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"data": map[string]any{"id": 77, "campaignId": 10, "name": "NYC"},
+		})
+	}))
+	t.Cleanup(srv.Close)
+
+	c, err := New(WithBaseURL(srv.URL))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := c.UpdateAdGroup(context.Background(), 10, 77, &AdGroupUpdate{
+		Name:                     "NYC",
+		ClearTargetingDimensions: true,
+	}); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestUpdateAdGroup_OmitsTargetingWhenUnset(t *testing.T) {
+	t.Parallel()
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var raw map[string]any
+		if err := json.NewDecoder(r.Body).Decode(&raw); err != nil {
+			t.Fatal(err)
+		}
+		ag, ok := raw["adGroup"].(map[string]any)
+		if !ok {
+			t.Fatalf("envelope = %#v", raw)
+		}
+		if _, present := ag["targetingDimensions"]; present {
+			t.Fatalf("targetingDimensions should be omitted, got %#v", ag["targetingDimensions"])
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"data": map[string]any{"id": 77, "campaignId": 10, "name": "Renamed"},
+		})
+	}))
+	t.Cleanup(srv.Close)
+
+	c, err := New(WithBaseURL(srv.URL))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := c.UpdateAdGroup(context.Background(), 10, 77, &AdGroupUpdate{Name: "Renamed"}); err != nil {
+		t.Fatal(err)
+	}
+}

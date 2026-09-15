@@ -43,6 +43,10 @@ resource "appleads_campaign" "search" {
   }
 }
 
+# City targeting is ad-group targeting_dimensions.locality, not campaign
+# countries_or_regions (which is immutable after create and stays US).
+# Look up IDs with data.appleads_geolocations; NYC is US|NY|New York.
+
 resource "appleads_ad_group" "core" {
   campaign_id               = appleads_campaign.search.id
   name                      = "Core terms"
