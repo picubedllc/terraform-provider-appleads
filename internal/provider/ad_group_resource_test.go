@@ -35,7 +35,10 @@ func TestAdGroupModelFromClient(t *testing.T) {
 		ModificationTime:       "2026-05-01T00:00:00Z",
 		PricingModel:           client.PricingModelCPC,
 	}
-	state := adGroupModelFromClient(got)
+	state, diags := adGroupModelFromClient(context.Background(), got)
+	if diags.HasError() {
+		t.Fatalf("diags: %v", diags)
+	}
 	if state.ID.ValueString() != "77" || state.CampaignID.ValueString() != "10" {
 		t.Fatalf("ids = %#v", state)
 	}
@@ -53,17 +56,23 @@ func TestAdGroupModelFromClient(t *testing.T) {
 func TestAdGroupModelFromClient_NullOptionals(t *testing.T) {
 	t.Parallel()
 
-	state := adGroupModelFromClient(&client.AdGroup{
+	state, diags := adGroupModelFromClient(context.Background(), &client.AdGroup{
 		ID:         1,
 		CampaignID: 2,
 		Name:       "x",
 		Status:     "PAUSED",
 	})
+	if diags.HasError() {
+		t.Fatalf("diags: %v", diags)
+	}
 	if !state.CPAGoalAmount.IsNull() || !state.StartTime.IsNull() || !state.EndTime.IsNull() {
 		t.Fatalf("expected null optionals: %#v", state)
 	}
 	if !state.PricingModel.IsNull() {
 		t.Fatalf("pricing_model = %#v, want null", state.PricingModel)
+	}
+	if state.TargetingDimensions != nil {
+		t.Fatalf("targeting_dimensions = %#v, want nil", state.TargetingDimensions)
 	}
 }
 
@@ -128,7 +137,10 @@ func TestAdGroupCreate_AndStateFromResponse(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	state := adGroupModelFromClient(created)
+	state, diags := adGroupModelFromClient(context.Background(), created)
+	if diags.HasError() {
+		t.Fatalf("diags: %v", diags)
+	}
 	if state.ID.ValueString() != "55" || state.ServingStatus.ValueString() != "RUNNING" {
 		t.Fatalf("state = %#v", state)
 	}
@@ -181,6 +193,13 @@ func TestAdGroupResource_SchemaRequiredCreateFields(t *testing.T) {
 		if !attr.IsRequired() {
 			t.Fatalf("%s should be required to match Apple Ads create", name)
 		}
+	}
+	td, ok := resp.Schema.Attributes["targeting_dimensions"]
+	if !ok {
+		t.Fatal("missing targeting_dimensions")
+	}
+	if td.IsRequired() || !td.IsOptional() {
+		t.Fatal("targeting_dimensions should be optional")
 	}
 }
 
@@ -276,5 +295,95 @@ func TestAdGroupCreate_APIValidationDiagnostic(t *testing.T) {
 	}
 	if !strings.Contains(diags[0].Detail(), "defaultBidAmount") {
 		t.Fatalf("detail = %s", diags[0].Detail())
+	}
+}
+
+func TestAdGroupModelFromClient_LocalityAndOverlay(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	got := &client.AdGroup{
+		ID:         1,
+		CampaignID: 2,
+		Name:       "nyc",
+		Status:     "PAUSED",
+		TargetingDimensions: &client.TargetingDimensions{
+			Locality:    &client.LocalityTarget{Included: []string{"US|NY|New York"}},
+			DeviceClass: &client.DeviceClassTarget{Included: []string{"IPHONE", "IPAD"}},
+			AppDownloaders: &client.AppDownloadersTarget{
+				Included: []string{},
+				Excluded: []string{},
+			},
+		},
+	}
+	reported, diags := adGroupModelFromClient(ctx, got)
+	if diags.HasError() {
+		t.Fatalf("diags: %v", diags)
+	}
+	if reported.TargetingDimensions == nil || reported.TargetingDimensions.Locality == nil {
+		t.Fatalf("expected locality from API: %#v", reported.TargetingDimensions)
+	}
+	if reported.TargetingDimensions.DeviceClass == nil {
+		t.Fatal("expected Apple default deviceClass in raw mapping")
+	}
+	if reported.TargetingDimensions.AppDownloaders != nil {
+		t.Fatalf("empty appDownloaders should be omitted: %#v", reported.TargetingDimensions.AppDownloaders)
+	}
+
+	loc, d := types.ListValueFrom(ctx, types.StringType, []string{"US|NY|New York"})
+	if d.HasError() {
+		t.Fatalf("list: %v", d)
+	}
+	configured := adGroupModel{
+		TargetingDimensions: &targetingDimensionsModel{
+			Locality: &includedStringsModel{Included: loc},
+		},
+	}
+	overlaid, diags := overlayAdGroupReported(ctx, configured, reported)
+	if diags.HasError() {
+		t.Fatalf("overlay diags: %v", diags)
+	}
+	if overlaid.TargetingDimensions == nil || overlaid.TargetingDimensions.Locality == nil {
+		t.Fatal("expected managed locality")
+	}
+	if overlaid.TargetingDimensions.DeviceClass != nil {
+		t.Fatalf("unmanaged device_class should stay null, got %#v", overlaid.TargetingDimensions.DeviceClass)
+	}
+	included, d := stringList(ctx, overlaid.TargetingDimensions.Locality.Included)
+	if d.HasError() {
+		t.Fatalf("included: %v", d)
+	}
+	if len(included) != 1 || included[0] != "US|NY|New York" {
+		t.Fatalf("locality = %#v", included)
+	}
+
+	omitted, diags := overlayAdGroupReported(ctx, adGroupModel{}, reported)
+	if diags.HasError() {
+		t.Fatalf("omit overlay: %v", diags)
+	}
+	if omitted.TargetingDimensions != nil {
+		t.Fatalf("omitted targeting should stay null, got %#v", omitted.TargetingDimensions)
+	}
+}
+
+func TestTargetingDimensionsFromModel_Locality(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	loc, d := types.ListValueFrom(ctx, types.StringType, []string{"US|NY|New York"})
+	if d.HasError() {
+		t.Fatalf("list: %v", d)
+	}
+	td, diags := targetingDimensionsFromModel(ctx, &targetingDimensionsModel{
+		Locality: &includedStringsModel{Included: loc},
+	})
+	if diags.HasError() {
+		t.Fatalf("diags: %v", diags)
+	}
+	if td == nil || td.Locality == nil || len(td.Locality.Included) != 1 || td.Locality.Included[0] != "US|NY|New York" {
+		t.Fatalf("td = %#v", td)
+	}
+	if td.Age != nil || td.AdminArea != nil || td.Daypart != nil {
+		t.Fatalf("unset dimensions should be nil: %#v", td)
 	}
 }

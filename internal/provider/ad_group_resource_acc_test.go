@@ -221,3 +221,69 @@ func testAccCheckAdGroupDestroy(s *terraform.State) error {
 	// Also ensure parent campaigns are archived when allow_campaign_deletion was true.
 	return testAccCheckCampaignDestroy(s)
 }
+
+func TestAccAdGroupResource_LocalityTargeting(t *testing.T) {
+	if os.Getenv("TF_ACC") == "" {
+		t.Skip("Acceptance tests skipped unless TF_ACC=1")
+	}
+	testAccPreCheck(t)
+
+	adamID := os.Getenv("APPLEADS_TEST_ADAM_ID")
+
+	resource.Test(t, resource.TestCase{
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		CheckDestroy:             testAccCheckAdGroupDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccProviderConfig(true) + testAccCampaignPausedConfig("geo", adamID) + `
+resource "appleads_ad_group" "nyc" {
+  campaign_id          = appleads_campaign.geo.id
+  name                 = "tf-acc-adgroup-nyc"
+  status               = "PAUSED"
+  default_bid_amount   = "1.00"
+  default_bid_currency = "USD"
+  pricing_model        = "CPC"
+  start_time           = "2026-01-01T00:00:00.000"
+
+  targeting_dimensions = {
+    locality = {
+      included = ["US|NY|New York"]
+    }
+  }
+}
+`,
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttrSet("appleads_ad_group.nyc", "id"),
+					resource.TestCheckResourceAttr("appleads_ad_group.nyc", "targeting_dimensions.locality.included.#", "1"),
+					resource.TestCheckResourceAttr("appleads_ad_group.nyc", "targeting_dimensions.locality.included.0", "US|NY|New York"),
+				),
+			},
+			{
+				Config: testAccProviderConfig(true) + testAccCampaignPausedConfig("geo", adamID) + `
+resource "appleads_ad_group" "nyc" {
+  campaign_id          = appleads_campaign.geo.id
+  name                 = "tf-acc-adgroup-nyc"
+  status               = "PAUSED"
+  default_bid_amount   = "1.00"
+  default_bid_currency = "USD"
+  pricing_model        = "CPC"
+  start_time           = "2026-01-01T00:00:00.000"
+
+  targeting_dimensions = {
+    admin_area = {
+      included = ["US|NY"]
+    }
+    locality = {
+      included = ["US|NY|New York"]
+    }
+  }
+}
+`,
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("appleads_ad_group.nyc", "targeting_dimensions.admin_area.included.0", "US|NY"),
+					resource.TestCheckResourceAttr("appleads_ad_group.nyc", "targeting_dimensions.locality.included.0", "US|NY|New York"),
+				),
+			},
+		},
+	})
+}

@@ -22,3 +22,24 @@ resource "appleads_ad_group" "today_tab" {
   pricing_model        = "CPM"
   start_time           = "2026-01-01T00:00:00.000"
 }
+
+# City targeting is ad-group targeting_dimensions.locality (Apple Ads
+# targetingDimensions). Campaign countries_or_regions stays US (immutable).
+# Look up IDs with data.appleads_geolocations; NYC locality is US|NY|New York.
+
+resource "appleads_ad_group" "nyc_brand" {
+  campaign_id          = appleads_campaign.example.id
+  name                 = "NYC — brand"
+  status               = "PAUSED"
+  default_bid_amount   = "1.25"
+  default_bid_currency = "USD"
+  pricing_model        = "CPC"
+  start_time           = "2026-01-01T00:00:00.000"
+
+  targeting_dimensions = {
+    locality = {
+      included = ["US|NY|New York"]
+    }
+  }
+}
+

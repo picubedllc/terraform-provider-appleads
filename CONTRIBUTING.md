@@ -69,7 +69,7 @@ Register new resources and data sources in `AppleAdsProvider.Resources` / `DataS
 Put new methods next to the existing domain files:
 
 - `campaigns.go` / `campaigns_api.go` — types vs HTTP
-- `adgroups.go`, `keywords.go`, `negative_keywords.go`, `apps.go`
+- `adgroups.go`, `keywords.go`, `negative_keywords.go`, `apps.go`, `geolocations.go`
 
 Use `Client.DoJSON` / `DoJSONWithQuery` for JSON endpoints. Failures come back as `*client.APIError` (status, Apple `messageCode`, message, `X-Request-Id`). Provider code should wrap those with `apiErrorDiagnostic` (or equivalent) rather than string-matching response bodies.
 
