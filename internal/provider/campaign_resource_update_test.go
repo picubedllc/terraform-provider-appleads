@@ -52,6 +52,31 @@ func TestDetectImmutableCampaignChanges(t *testing.T) {
 	}
 }
 
+func TestDetectImmutableCampaignChanges_CountryReorderIsNotAChange(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+
+	configured, _ := types.ListValueFrom(ctx, types.StringType, []string{"PL", "RO", "CZ"})
+	reordered, _ := types.ListValueFrom(ctx, types.StringType, []string{"CZ", "PL", "RO"})
+	supply, _ := types.ListValueFrom(ctx, types.StringType, []string{"APPSTORE_SEARCH_RESULTS"})
+
+	state := campaignModel{
+		ID:                 types.StringValue("12345"),
+		AdamID:             types.StringValue("1"),
+		AdChannelType:      types.StringValue("SEARCH"),
+		CountriesOrRegions: configured,
+		SupplySources:      supply,
+	}
+	plan := state
+	plan.CountriesOrRegions = reordered
+	plan.Name = types.StringValue("mutable")
+
+	changes := detectImmutableCampaignChanges(ctx, state, plan)
+	if len(changes) != 0 {
+		t.Fatalf("reorder should not be an identity change, got %#v", changes)
+	}
+}
+
 func TestCampaignUpdate_MutableSucceeds(t *testing.T) {
 	t.Parallel()
 

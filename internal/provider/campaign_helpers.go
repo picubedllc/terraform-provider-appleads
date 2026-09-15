@@ -185,6 +185,14 @@ func campaignModelFromClient(ctx context.Context, c *client.Campaign) (campaignM
 	return m, diags
 }
 
+// overlayCampaignReported keeps configured money scale and list order when
+// Apple only reformats those values, so Create/Read/Update do not fail
+// Terraform's after-apply consistency check.
+func overlayCampaignReported(ctx context.Context, configured, reported campaignModel) (campaignModel, diag.Diagnostics) {
+	reported = overlayCampaignMoney(configured, reported)
+	return overlayCampaignLists(ctx, configured, reported)
+}
+
 // overlayCampaignMoney keeps configured decimal strings when Apple normalizes
 // them (e.g. "5.00" → "5") so Terraform does not report a perpetual diff.
 func overlayCampaignMoney(configured, reported campaignModel) campaignModel {
@@ -216,6 +224,62 @@ func overlayKeywordMoney(configured, reported keywordModel) keywordModel {
 	}
 	reported.BidCurrency = preferAmount(configured.BidCurrency, reported.BidCurrency)
 	return reported
+}
+
+// overlayCampaignLists keeps configured countries_or_regions and
+// supply_sources order when Apple returns the same set in a different order.
+func overlayCampaignLists(ctx context.Context, configured, reported campaignModel) (campaignModel, diag.Diagnostics) {
+	var diags diag.Diagnostics
+	countries, d := preferConfiguredStringList(ctx, configured.CountriesOrRegions, reported.CountriesOrRegions)
+	diags.Append(d...)
+	reported.CountriesOrRegions = countries
+	supply, d := preferConfiguredStringList(ctx, configured.SupplySources, reported.SupplySources)
+	diags.Append(d...)
+	reported.SupplySources = supply
+	return reported, diags
+}
+
+// preferConfiguredStringList returns the configured list when it is the same
+// set as the API response. Membership changes keep the reported values.
+func preferConfiguredStringList(ctx context.Context, configured, reported types.List) (types.List, diag.Diagnostics) {
+	if configured.IsNull() || configured.IsUnknown() || reported.IsNull() || reported.IsUnknown() {
+		return reported, nil
+	}
+	cfg, d := stringList(ctx, configured)
+	if d.HasError() {
+		return reported, d
+	}
+	rep, d2 := stringList(ctx, reported)
+	d.Append(d2...)
+	if d.HasError() {
+		return reported, d
+	}
+	if stringSetEqual(cfg, rep) {
+		return configured, d
+	}
+	return reported, d
+}
+
+func stringSetEqual(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	counts := make(map[string]int, len(a))
+	for _, s := range a {
+		counts[s]++
+	}
+	for _, s := range b {
+		counts[s]--
+		if counts[s] < 0 {
+			return false
+		}
+	}
+	for _, n := range counts {
+		if n != 0 {
+			return false
+		}
+	}
+	return true
 }
 
 func preferAmount(configured, reported types.String) types.String {
