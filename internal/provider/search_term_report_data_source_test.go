@@ -29,9 +29,9 @@ func TestSearchTermReportDataSource_UnitReadAdGroup(t *testing.T) {
 				"reportingDataResponse": map[string]any{
 					"row": []map[string]any{{
 						"metadata": map[string]any{
-							"searchTermText": "blank slate party",
+							"searchTermText": "word party game",
 							"keywordId":      5,
-							"keyword":        "blank slate",
+							"keyword":        "word game",
 							"matchType":      "BROAD",
 						},
 						"total": map[string]any{"impressions": 11, "taps": 2, "totalInstalls": 1},
@@ -106,7 +106,7 @@ func TestSearchTermReportDataSource_UnitReadAdGroup(t *testing.T) {
 	if diags.HasError() {
 		t.Fatalf("state get: %v", diags)
 	}
-	if len(state.SearchTerms) != 1 || state.SearchTerms[0].SearchTermText.ValueString() != "blank slate party" {
+	if len(state.SearchTerms) != 1 || state.SearchTerms[0].SearchTermText.ValueString() != "word party game" {
 		t.Fatalf("state = %#v", state)
 	}
 	if state.SearchTerms[0].Installs.ValueInt64() != 1 {
