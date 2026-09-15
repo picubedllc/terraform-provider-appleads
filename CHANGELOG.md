@@ -7,6 +7,7 @@ FEATURES:
 
 BUG FIXES:
 
+* Include `selector.orderBy` on reporting requests (`localSpend` descending). Apple requires it on campaign, ad group, keyword, and search-term reports (`REQUIRED_INPUT_ORDER_BY_MISSING`).
 * Keep configured `appleads_campaign.countries_or_regions` and `supply_sources` order when Apple returns the same set in a different order. Treat membership, not list index, as the immutable identity so multi-country creates do not fail Terraform's after-apply consistency check.
 * Keep configured ad group `default_bid_amount` and keyword `bid_amount` decimal strings when Apple only changes scale (`1.00` → `1`). Omit keyword bids stay null in state even if Apple returns the ad group default.
 
