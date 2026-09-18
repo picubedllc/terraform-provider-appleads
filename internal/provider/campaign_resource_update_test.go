@@ -28,6 +28,7 @@ func TestDetectImmutableCampaignChanges(t *testing.T) {
 		ID:                 types.StringValue("12345"),
 		AdamID:             types.StringValue("1"),
 		AdChannelType:      types.StringValue("SEARCH"),
+		BillingEvent:       types.StringValue("TAPS"),
 		CountriesOrRegions: countriesA,
 		SupplySources:      supply,
 	}
@@ -49,6 +50,41 @@ func TestDetectImmutableCampaignChanges(t *testing.T) {
 	}
 	if !strings.Contains(detail, "Create a new appleads_campaign") {
 		t.Fatalf("detail = %s", detail)
+	}
+}
+
+func TestDetectImmutableCampaignChanges_BillingEvent(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+
+	countries, _ := types.ListValueFrom(ctx, types.StringType, []string{"US"})
+	supply, _ := types.ListValueFrom(ctx, types.StringType, []string{"APPSTORE_SEARCH_RESULTS"})
+
+	state := campaignModel{
+		ID:                 types.StringValue("55"),
+		AdamID:             types.StringValue("1"),
+		AdChannelType:      types.StringValue("SEARCH"),
+		BillingEvent:       types.StringValue("TAPS"),
+		CountriesOrRegions: countries,
+		SupplySources:      supply,
+	}
+	plan := state
+	plan.BillingEvent = types.StringValue("IMPRESSIONS")
+	plan.Name = types.StringValue("mutable too")
+
+	changes := detectImmutableCampaignChanges(ctx, state, plan)
+	if len(changes) != 1 || changes[0].Field != "billing_event" {
+		t.Fatalf("changes = %#v", changes)
+	}
+	diags := immutableCampaignChangeDiagnostics("55", changes)
+	if !diags.HasError() {
+		t.Fatal("expected diagnostics")
+	}
+	if !strings.Contains(diags[0].Summary(), "billing_event") {
+		t.Fatalf("summary = %s", diags[0].Summary())
+	}
+	if !strings.Contains(diags[0].Detail(), "Create a new appleads_campaign") {
+		t.Fatalf("detail = %s", diags[0].Detail())
 	}
 }
 

@@ -187,6 +187,9 @@ func TestCampaignCreateFromPlan_SearchDefaultsMatchLivePayload(t *testing.T) {
 		DailyBudgetCurrency: types.StringValue("USD"),
 		SupplySources:       types.ListNull(types.StringType),
 		BudgetOrders:        types.ListNull(types.StringType),
+		AdChannelType:       types.StringNull(),
+		BillingEvent:        types.StringNull(),
+		StartTime:           types.StringNull(),
 	})
 	if diags.HasError() {
 		t.Fatalf("%v", diags)
@@ -203,8 +206,165 @@ func TestCampaignCreateFromPlan_SearchDefaultsMatchLivePayload(t *testing.T) {
 	if in.BiddingStrategy != "MANUAL_CPT" {
 		t.Fatalf("biddingStrategy = %q", in.BiddingStrategy)
 	}
+	if in.StartTime != "" {
+		t.Fatalf("startTime should be omitted when unset, got %q", in.StartTime)
+	}
 	if in.DailyBudgetAmount == nil || in.DailyBudgetAmount.Amount != "5.00" || in.DailyBudgetAmount.Currency != "USD" {
 		t.Fatalf("dailyBudgetAmount = %#v", in.DailyBudgetAmount)
+	}
+}
+
+func TestCampaignCreateFromPlan_ExplicitDisplayChannelAndSupply(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	countries, diags := types.ListValueFrom(ctx, types.StringType, []string{"US"})
+	if diags.HasError() {
+		t.Fatal(diags)
+	}
+	supply, diags := types.ListValueFrom(ctx, types.StringType, []string{"APPSTORE_SEARCH_TAB"})
+	if diags.HasError() {
+		t.Fatal(diags)
+	}
+	in, diags := campaignCreateFromPlan(ctx, campaignModel{
+		Name:                types.StringValue("Display Campaign"),
+		AdamID:              types.StringValue("1234567890"),
+		Status:              types.StringValue("PAUSED"),
+		CountriesOrRegions:  countries,
+		DailyBudgetAmount:   types.StringValue("5.00"),
+		DailyBudgetCurrency: types.StringValue("USD"),
+		AdChannelType:       types.StringValue("DISPLAY"),
+		SupplySources:       supply,
+		BillingEvent:        types.StringValue("TAPS"),
+		BudgetOrders:        types.ListNull(types.StringType),
+		StartTime:           types.StringNull(),
+	})
+	if diags.HasError() {
+		t.Fatalf("%v", diags)
+	}
+	if in.AdChannelType != "DISPLAY" {
+		t.Fatalf("adChannelType = %q, want DISPLAY (must not force SEARCH)", in.AdChannelType)
+	}
+	if len(in.SupplySources) != 1 || in.SupplySources[0] != "APPSTORE_SEARCH_TAB" {
+		t.Fatalf("supplySources = %#v, must not force APPSTORE_SEARCH_RESULTS", in.SupplySources)
+	}
+	if in.BillingEvent != "TAPS" {
+		t.Fatalf("billingEvent = %q", in.BillingEvent)
+	}
+}
+
+func TestCampaignCreateFromPlan_StartTimePassThrough(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	countries, diags := types.ListValueFrom(ctx, types.StringType, []string{"US"})
+	if diags.HasError() {
+		t.Fatal(diags)
+	}
+	in, diags := campaignCreateFromPlan(ctx, campaignModel{
+		Name:                types.StringValue("Scheduled"),
+		AdamID:              types.StringValue("9"),
+		CountriesOrRegions:  countries,
+		DailyBudgetAmount:   types.StringValue("1.00"),
+		DailyBudgetCurrency: types.StringValue("USD"),
+		SupplySources:       types.ListNull(types.StringType),
+		BudgetOrders:        types.ListNull(types.StringType),
+		StartTime:           types.StringValue("2026-06-01T12:00:00.000"),
+	})
+	if diags.HasError() {
+		t.Fatalf("%v", diags)
+	}
+	if in.StartTime != "2026-06-01T12:00:00.000" {
+		t.Fatalf("startTime = %q", in.StartTime)
+	}
+}
+
+func TestCampaignModelFromClient_PaymentModelAndBillingStart(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	state, diags := campaignModelFromClient(ctx, &client.Campaign{
+		ID:                 77,
+		Name:               "Read",
+		AdamID:             9,
+		Status:             "PAUSED",
+		AdChannelType:      "SEARCH",
+		BillingEvent:       "TAPS",
+		PaymentModel:       "PAYG",
+		StartTime:          "2026-06-01T12:00:00.000",
+		CountriesOrRegions: []string{"US"},
+		SupplySources:      []string{"APPSTORE_SEARCH_RESULTS"},
+		ServingStatus:      "NOT_RUNNING",
+		DisplayStatus:      "PAUSED",
+		ModificationTime:   "2026-06-02T00:00:00Z",
+	})
+	if diags.HasError() {
+		t.Fatalf("%v", diags)
+	}
+	if state.PaymentModel.ValueString() != "PAYG" {
+		t.Fatalf("payment_model = %q", state.PaymentModel.ValueString())
+	}
+	if state.BillingEvent.ValueString() != "TAPS" {
+		t.Fatalf("billing_event = %q", state.BillingEvent.ValueString())
+	}
+	if state.StartTime.ValueString() != "2026-06-01T12:00:00.000" {
+		t.Fatalf("start_time = %q", state.StartTime.ValueString())
+	}
+}
+
+func TestOverlayCampaignStartTime_KeepsConfiguredPrecision(t *testing.T) {
+	t.Parallel()
+
+	configured := campaignModel{StartTime: types.StringValue("2026-06-01T12:00:00.000")}
+	reported := campaignModel{StartTime: types.StringValue("2026-06-01T12:00:00.000Z")}
+	out := overlayCampaignStartTime(configured, reported)
+	if out.StartTime.ValueString() != "2026-06-01T12:00:00.000" {
+		t.Fatalf("start_time = %q", out.StartTime.ValueString())
+	}
+
+	// When plan omitted start_time, keep Apple's assigned value.
+	configured = campaignModel{StartTime: types.StringNull()}
+	out = overlayCampaignStartTime(configured, reported)
+	if out.StartTime.ValueString() != "2026-06-01T12:00:00.000Z" {
+		t.Fatalf("start_time = %q", out.StartTime.ValueString())
+	}
+}
+
+func TestOverlayCampaignReported_IncludesStartTime(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	countries, diags := types.ListValueFrom(ctx, types.StringType, []string{"US"})
+	if diags.HasError() {
+		t.Fatal(diags)
+	}
+	configured := campaignModel{
+		CountriesOrRegions:  countries,
+		DailyBudgetAmount:   types.StringValue("5.00"),
+		DailyBudgetCurrency: types.StringValue("USD"),
+		StartTime:           types.StringValue("2026-06-01T12:00:00.000"),
+		SupplySources:       types.ListNull(types.StringType),
+	}
+	reportedCountries, diags := types.ListValueFrom(ctx, types.StringType, []string{"US"})
+	if diags.HasError() {
+		t.Fatal(diags)
+	}
+	reported := campaignModel{
+		CountriesOrRegions:  reportedCountries,
+		DailyBudgetAmount:   types.StringValue("5"),
+		DailyBudgetCurrency: types.StringValue("USD"),
+		StartTime:           types.StringValue("2026-06-01T12:00:00.000Z"),
+		SupplySources:       types.ListNull(types.StringType),
+	}
+	out, diags := overlayCampaignReported(ctx, configured, reported)
+	if diags.HasError() {
+		t.Fatal(diags)
+	}
+	if out.DailyBudgetAmount.ValueString() != "5.00" {
+		t.Fatalf("daily = %q", out.DailyBudgetAmount.ValueString())
+	}
+	if out.StartTime.ValueString() != "2026-06-01T12:00:00.000" {
+		t.Fatalf("start_time = %q", out.StartTime.ValueString())
 	}
 }
 

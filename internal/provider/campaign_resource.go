@@ -47,12 +47,16 @@ type campaignResource struct {
 //   - countries_or_regions
 //   - supply_sources
 //   - ad_channel_type
+//   - billing_event
 //
 // Mutable — in-place Update:
 //   - name, status, budget_amount, daily_budget_amount, budget_orders, end_time
 //
+// Create optional / computed:
+//   - start_time (passed on create; Apple may assign when omitted)
+//
 // Computed:
-//   - id, serving_status, display_status, modification_time
+//   - id, payment_model, serving_status, display_status, modification_time
 type campaignModel struct {
 	ID                  types.String `tfsdk:"id"`
 	Name                types.String `tfsdk:"name"`
@@ -61,12 +65,15 @@ type campaignModel struct {
 	CountriesOrRegions  types.List   `tfsdk:"countries_or_regions"`
 	SupplySources       types.List   `tfsdk:"supply_sources"`
 	AdChannelType       types.String `tfsdk:"ad_channel_type"`
+	BillingEvent        types.String `tfsdk:"billing_event"`
 	BudgetAmount        types.String `tfsdk:"budget_amount"`
 	BudgetCurrency      types.String `tfsdk:"budget_currency"`
 	DailyBudgetAmount   types.String `tfsdk:"daily_budget_amount"`
 	DailyBudgetCurrency types.String `tfsdk:"daily_budget_currency"`
 	BudgetOrders        types.List   `tfsdk:"budget_orders"`
+	StartTime           types.String `tfsdk:"start_time"`
 	EndTime             types.String `tfsdk:"end_time"`
+	PaymentModel        types.String `tfsdk:"payment_model"`
 	ServingStatus       types.String `tfsdk:"serving_status"`
 	DisplayStatus       types.String `tfsdk:"display_status"`
 	ModificationTime    types.String `tfsdk:"modification_time"`
@@ -176,13 +183,33 @@ func (r *campaignResource) Schema(ctx context.Context, req resource.SchemaReques
 			"ad_channel_type": schema.StringAttribute{
 				Optional:            true,
 				Computed:            true,
-				MarkdownDescription: "Ad channel type such as `SEARCH` (immutable).",
+				MarkdownDescription: "Ad channel type such as `SEARCH` or `DISPLAY` (immutable). Defaults to `SEARCH` when omitted.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
+			},
+			"billing_event": schema.StringAttribute{
+				Optional:            true,
+				Computed:            true,
+				MarkdownDescription: "Billing event such as `TAPS` (immutable). Defaults to `TAPS` when omitted.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
+			},
+			"start_time": schema.StringAttribute{
+				Optional:            true,
+				Computed:            true,
+				MarkdownDescription: "Campaign start time in ISO-8601 format. Use millisecond precision on create, e.g. `2026-01-01T00:00:00.000`. When omitted, Apple assigns the start time.",
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.UseStateForUnknown(),
 				},
 			},
 
 			// Computed read-only
+			"payment_model": schema.StringAttribute{
+				Computed:            true,
+				MarkdownDescription: "Payment model inherited from the organization (e.g. `PAYG`). Read-only; not writable.",
+			},
 			"serving_status": schema.StringAttribute{
 				Computed:            true,
 				MarkdownDescription: "Effective serving status reported by Apple Ads.",

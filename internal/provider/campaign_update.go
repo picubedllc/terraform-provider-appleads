@@ -27,6 +27,9 @@ func detectImmutableCampaignChanges(ctx context.Context, state, plan campaignMod
 	if !stringAttrEqual(state.AdChannelType, plan.AdChannelType) {
 		changes = append(changes, immutableCampaignFieldChange{Field: "ad_channel_type"})
 	}
+	if !stringAttrEqual(state.BillingEvent, plan.BillingEvent) {
+		changes = append(changes, immutableCampaignFieldChange{Field: "billing_event"})
+	}
 	if !listAttrSetEqual(ctx, state.CountriesOrRegions, plan.CountriesOrRegions) {
 		changes = append(changes, immutableCampaignFieldChange{Field: "countries_or_regions"})
 	}
