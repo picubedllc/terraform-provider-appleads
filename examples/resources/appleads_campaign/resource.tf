@@ -1,8 +1,9 @@
 # Manages an Apple Ads campaign.
 #
-# Immutable fields (adam_id, countries_or_regions, supply_sources,
-# ad_channel_type, billing_event) never trigger automatic replacement —
-# changing them returns an error so historical campaign identity is preserved.
+# Immutable / create-only fields (adam_id, countries_or_regions, supply_sources,
+# ad_channel_type, billing_event, budget_amount, budget_currency) never trigger
+# automatic replacement — changing them returns an error so historical campaign
+# identity is preserved. daily_budget_amount remains mutable in place.
 #
 # Manual CPT (default when bidding_strategy is omitted):
 

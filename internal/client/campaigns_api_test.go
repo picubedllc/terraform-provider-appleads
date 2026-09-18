@@ -337,27 +337,25 @@ func TestUpdateCampaign_BiddingStrategyAndTargetCpa(t *testing.T) {
 	}
 }
 
-func TestUpdateCampaign_BudgetAmountPayload(t *testing.T) {
+func TestUpdateCampaign_OmitsBudgetAmount(t *testing.T) {
 	t.Parallel()
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		var envelope struct {
-			Campaign CampaignUpdate `json:"campaign"`
-		}
-		if err := json.NewDecoder(r.Body).Decode(&envelope); err != nil {
+		var raw map[string]any
+		if err := json.NewDecoder(r.Body).Decode(&raw); err != nil {
 			t.Fatal(err)
 		}
-		if envelope.Campaign.BudgetAmount == nil || envelope.Campaign.BudgetAmount.Amount != "500.00" {
-			t.Fatalf("budgetAmount = %#v", envelope.Campaign.BudgetAmount)
+		campaign, ok := raw["campaign"].(map[string]any)
+		if !ok {
+			t.Fatalf("campaign = %#v", raw["campaign"])
 		}
-		w.WriteHeader(http.StatusBadRequest)
+		if _, has := campaign["budgetAmount"]; has {
+			t.Fatal("budgetAmount must not appear on mutable CampaignUpdate payloads")
+		}
 		_ = json.NewEncoder(w).Encode(map[string]any{
-			"error": map[string]any{
-				"errors": []map[string]string{{
-					"messageCode": "INVALID_ATTRIBUTE_VALUE",
-					"message":     "budgetAmount cannot be updated",
-					"field":       "budgetAmount",
-				}},
+			"data": map[string]any{
+				"id":                1,
+				"dailyBudgetAmount": campaign["dailyBudgetAmount"],
 			},
 		})
 	}))
@@ -368,13 +366,48 @@ func TestUpdateCampaign_BudgetAmountPayload(t *testing.T) {
 		t.Fatal(err)
 	}
 	_, err = c.UpdateCampaign(context.Background(), 1, &CampaignUpdate{
-		BudgetAmount: &Money{Amount: "500.00", Currency: "USD"},
+		DailyBudgetAmount: &Money{Amount: "10.00", Currency: "USD"},
 	})
-	if err == nil {
-		t.Fatal("expected error")
+	if err != nil {
+		t.Fatal(err)
 	}
-	apiErr, ok := err.(*APIError)
-	if !ok || !strings.Contains(apiErr.Message, "budgetAmount") {
-		t.Fatalf("err = %v", err)
+}
+
+func TestCreateCampaign_BudgetAmountPayload(t *testing.T) {
+	t.Parallel()
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body CampaignCreate
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Fatal(err)
+		}
+		if body.BudgetAmount == nil || body.BudgetAmount.Amount != "500.00" {
+			t.Fatalf("budgetAmount = %#v", body.BudgetAmount)
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"data": map[string]any{
+				"id":           1,
+				"budgetAmount": map[string]string{"amount": "500.00", "currency": "USD"},
+			},
+		})
+	}))
+	t.Cleanup(srv.Close)
+
+	c, err := New(WithBaseURL(srv.URL))
+	if err != nil {
+		t.Fatal(err)
+	}
+	out, err := c.CreateCampaign(context.Background(), &CampaignCreate{
+		Name:               "With Lifetime Budget",
+		AdamID:             1,
+		CountriesOrRegions: []string{"US"},
+		BudgetAmount:       &Money{Amount: "500.00", Currency: "USD"},
+		DailyBudgetAmount:  &Money{Amount: "10.00", Currency: "USD"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out.BudgetAmount == nil || out.BudgetAmount.Amount != "500.00" {
+		t.Fatalf("out.BudgetAmount = %#v", out.BudgetAmount)
 	}
 }

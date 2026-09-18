@@ -43,15 +43,16 @@ type campaignResource struct {
 //
 // Field mutability (must stay in sync with client.Campaign comments):
 //
-// Immutable — never use RequiresReplace; Update returns a diagnostic instead:
+// Immutable / create-only — never use RequiresReplace; Update returns a diagnostic instead:
 //   - adam_id
 //   - countries_or_regions
 //   - supply_sources
 //   - ad_channel_type
 //   - billing_event
+//   - budget_amount, budget_currency (lifetime total; create-only)
 //
 // Mutable — in-place Update:
-//   - name, status, budget_amount, daily_budget_amount, budget_orders, end_time,
+//   - name, status, daily_budget_amount, daily_budget_currency, budget_orders, end_time,
 //     bidding_strategy, target_cpa_amount, target_cpa_currency
 //
 // Create optional / computed:
@@ -121,21 +122,6 @@ func (r *campaignResource) Schema(ctx context.Context, req resource.SchemaReques
 					stringplanmodifier.UseStateForUnknown(),
 				},
 			},
-			"budget_amount": schema.StringAttribute{
-				Optional:            true,
-				MarkdownDescription: "Lifetime campaign budget amount as a decimal string (mutable). Never use floating point.",
-				Validators: []validator.String{
-					stringvalidator.RegexMatches(moneyAmountRegexp, "budget_amount must be a positive decimal string (e.g. \"100.00\")"),
-				},
-			},
-			"budget_currency": schema.StringAttribute{
-				Optional:            true,
-				Computed:            true,
-				MarkdownDescription: "Currency code for budget_amount (e.g. USD).",
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
-			},
 			"daily_budget_amount": schema.StringAttribute{
 				Optional:            true,
 				MarkdownDescription: "Daily budget amount as a decimal string (mutable).",
@@ -161,7 +147,24 @@ func (r *campaignResource) Schema(ctx context.Context, req resource.SchemaReques
 				MarkdownDescription: "Campaign end time in ISO-8601 format (mutable).",
 			},
 
-			// Immutable. Intentionally no RequiresReplace plan modifiers.
+			// Immutable / create-only. Intentionally no RequiresReplace plan modifiers.
+			"budget_amount": schema.StringAttribute{
+				Optional: true,
+				MarkdownDescription: "Lifetime campaign budget amount as a decimal string (create-only). " +
+					"Changing this after create returns an error; create a new appleads_campaign instead. Never use floating point.",
+				Validators: []validator.String{
+					stringvalidator.RegexMatches(moneyAmountRegexp, "budget_amount must be a positive decimal string (e.g. \"100.00\")"),
+				},
+			},
+			"budget_currency": schema.StringAttribute{
+				Optional: true,
+				Computed: true,
+				MarkdownDescription: "Currency code for budget_amount (e.g. USD; create-only with budget_amount). " +
+					"Changing this after create returns an error; create a new appleads_campaign instead.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
+			},
 			"adam_id": schema.StringAttribute{
 				Required:            true,
 				MarkdownDescription: "Adam ID of the promoted app (immutable). Changing this after create returns an error; create a new appleads_campaign instead.",
