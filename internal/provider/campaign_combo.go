@@ -11,6 +11,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
+	"github.com/shopspring/decimal"
 
 	"github.com/picubedllc/terraform-provider-appleads/internal/client"
 )
@@ -29,7 +30,7 @@ Apple Ads Campaign Management API v5 allows these combinations only:
 | ` + "`SEARCH`" + ` | ` + "`APPSTORE_SEARCH_RESULTS`" + ` | ` + "`TAPS`" + ` | ` + "`MANUAL_CPT`" + ` or ` + "`MAX_CONVERSIONS`" + ` |
 | ` + "`DISPLAY`" + ` | ` + "`APPSTORE_TODAY_TAB`" + ` / ` + "`APPSTORE_SEARCH_TAB`" + ` / ` + "`APPSTORE_PRODUCT_PAGES_BROWSE`" + ` | ` + "`TAPS`" + ` | ` + "`MANUAL_CPT`" + ` only |
 
-` + "`MAX_CONVERSIONS`" + ` requires Search Results supply. Target CPA schema support lands with bidding follow-up work (#44); until then Max Conversions may still need Apple-side target CPA.
+` + "`MAX_CONVERSIONS`" + ` requires Search Results supply and a positive ` + "`target_cpa_amount`" + `.
 
 **Display note:** Configuring a Display campaign is supported for create/read, but end-to-end delivery still requires creatives/ads (not yet managed by this provider).
 `
@@ -41,22 +42,23 @@ func (r *campaignResource) ValidateConfig(ctx context.Context, req resource.Vali
 		return
 	}
 
-	channel, supply, billing, bidding, skip, diags := resolveCampaignComboConfig(ctx, config)
+	channel, supply, billing, bidding, targetCpa, skip, diags := resolveCampaignComboConfig(ctx, config)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() || skip {
 		return
 	}
 
-	resp.Diagnostics.Append(validateCampaignCombo(channel, supply, billing, bidding)...)
+	resp.Diagnostics.Append(validateCampaignCombo(channel, supply, billing, bidding, targetCpa)...)
 }
 
 // resolveCampaignComboConfig applies the same create-time defaults used by
 // campaignCreateFromPlan so omitted Optional/Computed values are validated as
 // Apple will receive them. Returns skip=true when any input is still unknown.
-func resolveCampaignComboConfig(ctx context.Context, config campaignModel) (channel string, supply []string, billing, bidding string, skip bool, diags diag.Diagnostics) {
+func resolveCampaignComboConfig(ctx context.Context, config campaignModel) (channel string, supply []string, billing, bidding, targetCpa string, skip bool, diags diag.Diagnostics) {
 	if config.AdChannelType.IsUnknown() || config.SupplySources.IsUnknown() ||
-		config.BillingEvent.IsUnknown() || config.BiddingStrategy.IsUnknown() {
-		return "", nil, "", "", true, diags
+		config.BillingEvent.IsUnknown() || config.BiddingStrategy.IsUnknown() ||
+		config.TargetCpaAmount.IsUnknown() {
+		return "", nil, "", "", "", true, diags
 	}
 
 	channel = client.AdChannelTypeSearch
@@ -67,7 +69,7 @@ func resolveCampaignComboConfig(ctx context.Context, config campaignModel) (chan
 	supply, d := stringList(ctx, config.SupplySources)
 	diags.Append(d...)
 	if diags.HasError() {
-		return "", nil, "", "", false, diags
+		return "", nil, "", "", "", false, diags
 	}
 	if len(supply) == 0 {
 		supply = []string{client.SupplySourceSearchResults}
@@ -83,15 +85,17 @@ func resolveCampaignComboConfig(ctx context.Context, config campaignModel) (chan
 		bidding = config.BiddingStrategy.ValueString()
 	}
 
-	return channel, supply, billing, bidding, false, diags
+	if !config.TargetCpaAmount.IsNull() {
+		targetCpa = config.TargetCpaAmount.ValueString()
+	}
+
+	return channel, supply, billing, bidding, targetCpa, false, diags
 }
 
 // validateCampaignCombo enforces the Apple Ads channel/supply/billing/bidding
-// matrix. bidding may be empty (treated as MANUAL_CPT).
-//
-// TODO(PR4/#44): when target_cpa_amount / target_cpa_currency land on the
-// schema, require a positive target CPA whenever bidding is MAX_CONVERSIONS.
-func validateCampaignCombo(channel string, supply []string, billing, bidding string) diag.Diagnostics {
+// matrix. bidding may be empty (treated as MANUAL_CPT). When bidding is
+// MAX_CONVERSIONS, targetCpaAmount must be a positive decimal string.
+func validateCampaignCombo(channel string, supply []string, billing, bidding, targetCpaAmount string) diag.Diagnostics {
 	var diags diag.Diagnostics
 
 	if bidding == "" {
@@ -228,8 +232,24 @@ func validateCampaignCombo(channel string, supply []string, billing, bidding str
 		)
 	}
 
-	// TODO(PR4/#44): reject MAX_CONVERSIONS when target_cpa_amount is unset once
-	// that attribute exists on appleads_campaign.
+	if bidding == client.BiddingStrategyMaxConversions {
+		if targetCpaAmount == "" {
+			diags.AddAttributeError(
+				path.Root("target_cpa_amount"),
+				"MAX_CONVERSIONS requires target_cpa_amount",
+				fmt.Sprintf(
+					"%q requires a positive target_cpa_amount (and typically target_cpa_currency).",
+					client.BiddingStrategyMaxConversions,
+				),
+			)
+		} else if amt, err := decimal.NewFromString(targetCpaAmount); err != nil || !amt.IsPositive() {
+			diags.AddAttributeError(
+				path.Root("target_cpa_amount"),
+				"Invalid target_cpa_amount",
+				"target_cpa_amount must be a positive decimal string when bidding_strategy is MAX_CONVERSIONS.",
+			)
+		}
+	}
 
 	return diags
 }

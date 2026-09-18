@@ -2,6 +2,7 @@
 
 FEATURES:
 
+* Complete Maximize Conversions on `appleads_campaign`: optional `target_cpa_amount` / `target_cpa_currency`, create/update/read wiring for `TargetCpa` and `BiddingStrategy`, plan-time validation that `MAX_CONVERSIONS` requires Search Results supply and a positive target CPA ([#44](https://github.com/picubedllc/terraform-provider-appleads/issues/44)).
 * Add plan-time validators for `appleads_campaign` channel / supply / billing / bidding combinations, plus optional `bidding_strategy` (`MANUAL_CPT` | `MAX_CONVERSIONS`). Docs describe the matrix and that Display delivery still needs creatives/ads.
 * Add optional `targeting_dimensions` on `appleads_ad_group` mapped to Apple Ads `targetingDimensions`, including geo (`locality`, `admin_area`, `country`) plus age, gender, `device_class`, `daypart`, and `app_downloaders`. City targeting uses locality IDs such as `US|NY|New York` (single-country campaigns only).
 * Add `appleads_geolocations` data source for Search for Geolocations (`GET /search/geo`) so locality IDs can be resolved instead of hardcoding blindly.

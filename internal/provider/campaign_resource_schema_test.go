@@ -38,7 +38,7 @@ func TestCampaignResource_SchemaMutableImmutableClassification(t *testing.T) {
 		}
 	}
 
-	mutable := []string{"name", "status", "budget_amount", "daily_budget_amount", "budget_orders", "end_time", "bidding_strategy"}
+	mutable := []string{"name", "status", "budget_amount", "daily_budget_amount", "budget_orders", "end_time", "bidding_strategy", "target_cpa_amount"}
 	for _, name := range mutable {
 		attr, ok := resp.Schema.Attributes[name]
 		if !ok {
@@ -48,6 +48,10 @@ func TestCampaignResource_SchemaMutableImmutableClassification(t *testing.T) {
 		if !strings.Contains(strings.ToLower(desc), "mutable") {
 			t.Fatalf("attribute %q should document mutability; got %q", name, desc)
 		}
+	}
+
+	if _, ok := resp.Schema.Attributes["target_cpa_currency"]; !ok {
+		t.Fatal("missing target_cpa_currency attribute")
 	}
 
 	startTime, ok := resp.Schema.Attributes["start_time"]
