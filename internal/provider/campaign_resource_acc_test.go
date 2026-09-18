@@ -20,6 +20,79 @@ import (
 // Acceptance tests require TF_ACC=1 and real Apple Ads credentials.
 // They are excluded from default CI (see Makefile test vs testacc).
 
+func TestAccCampaignResource_MaxConversions(t *testing.T) {
+	if os.Getenv("TF_ACC") == "" {
+		t.Skip("Acceptance tests skipped unless TF_ACC=1")
+	}
+	testAccPreCheck(t)
+
+	adamID := os.Getenv("APPLEADS_TEST_ADAM_ID")
+	namePrefix := "tf-acc-campaign-max"
+
+	resource.Test(t, resource.TestCase{
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		CheckDestroy:             testAccCheckCampaignDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccProviderConfig(true) + fmt.Sprintf(`
+resource "appleads_campaign" "max" {
+  name                  = "%[1]s-create"
+  adam_id               = "%[2]s"
+  countries_or_regions  = ["US"]
+  status                = "PAUSED"
+  daily_budget_amount   = "1.00"
+  daily_budget_currency = "USD"
+  bidding_strategy      = "MAX_CONVERSIONS"
+  target_cpa_amount     = "10.00"
+  target_cpa_currency   = "USD"
+}
+`, namePrefix, adamID),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttrSet("appleads_campaign.max", "id"),
+					resource.TestCheckResourceAttr("appleads_campaign.max", "bidding_strategy", "MAX_CONVERSIONS"),
+					resource.TestCheckResourceAttr("appleads_campaign.max", "target_cpa_amount", "10.00"),
+					resource.TestCheckResourceAttr("appleads_campaign.max", "target_cpa_currency", "USD"),
+				),
+			},
+			{
+				Config: testAccProviderConfig(true) + fmt.Sprintf(`
+resource "appleads_campaign" "max" {
+  name                  = "%[1]s-updated"
+  adam_id               = "%[2]s"
+  countries_or_regions  = ["US"]
+  status                = "PAUSED"
+  daily_budget_amount   = "1.00"
+  daily_budget_currency = "USD"
+  bidding_strategy      = "MAX_CONVERSIONS"
+  target_cpa_amount     = "12.00"
+  target_cpa_currency   = "USD"
+}
+`, namePrefix, adamID),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("appleads_campaign.max", "name", namePrefix+"-updated"),
+					resource.TestCheckResourceAttr("appleads_campaign.max", "target_cpa_amount", "12.00"),
+				),
+			},
+			{
+				Config: testAccProviderConfig(true) + fmt.Sprintf(`
+resource "appleads_campaign" "max" {
+  name                  = "%[1]s-manual"
+  adam_id               = "%[2]s"
+  countries_or_regions  = ["US"]
+  status                = "PAUSED"
+  daily_budget_amount   = "1.00"
+  daily_budget_currency = "USD"
+  bidding_strategy      = "MANUAL_CPT"
+}
+`, namePrefix, adamID),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("appleads_campaign.max", "bidding_strategy", "MANUAL_CPT"),
+				),
+			},
+		},
+	})
+}
+
 func TestAccCampaignResource_Lifecycle(t *testing.T) {
 	if os.Getenv("TF_ACC") == "" {
 		t.Skip("Acceptance tests skipped unless TF_ACC=1")

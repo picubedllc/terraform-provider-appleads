@@ -83,6 +83,8 @@ func campaignCreateFromPlan(ctx context.Context, plan campaignModel) (*client.Ca
 	diags.Append(d...)
 	daily, d := moneyFromStrings(plan.DailyBudgetAmount, plan.DailyBudgetCurrency)
 	diags.Append(d...)
+	targetCpa, d := moneyFromStrings(plan.TargetCpaAmount, plan.TargetCpaCurrency)
+	diags.Append(d...)
 	if budget != nil {
 		if amt, err := decimal.NewFromString(budget.Amount); err == nil && !amt.IsPositive() {
 			diags.AddError("Invalid budget_amount", "budget_amount must be greater than zero")
@@ -91,6 +93,11 @@ func campaignCreateFromPlan(ctx context.Context, plan campaignModel) (*client.Ca
 	if daily != nil {
 		if amt, err := decimal.NewFromString(daily.Amount); err == nil && !amt.IsPositive() {
 			diags.AddError("Invalid daily_budget_amount", "daily_budget_amount must be greater than zero")
+		}
+	}
+	if targetCpa != nil {
+		if amt, err := decimal.NewFromString(targetCpa.Amount); err == nil && !amt.IsPositive() {
+			diags.AddError("Invalid target_cpa_amount", "target_cpa_amount must be greater than zero")
 		}
 	}
 
@@ -108,6 +115,7 @@ func campaignCreateFromPlan(ctx context.Context, plan campaignModel) (*client.Ca
 		CountriesOrRegions: countries,
 		BudgetAmount:       budget,
 		DailyBudgetAmount:  daily,
+		TargetCpa:          targetCpa,
 		SupplySources:      supply,
 		BudgetOrders:       orders,
 	}
@@ -192,6 +200,13 @@ func campaignModelFromClient(ctx context.Context, c *client.Campaign) (campaignM
 		m.DailyBudgetAmount = types.StringNull()
 		m.DailyBudgetCurrency = types.StringNull()
 	}
+	if c.TargetCpa != nil {
+		m.TargetCpaAmount = types.StringValue(c.TargetCpa.Amount)
+		m.TargetCpaCurrency = types.StringValue(c.TargetCpa.Currency)
+	} else {
+		m.TargetCpaAmount = types.StringNull()
+		m.TargetCpaCurrency = types.StringNull()
+	}
 
 	if len(c.BudgetOrders) == 0 {
 		m.BudgetOrders = types.ListNull(types.StringType)
@@ -238,6 +253,8 @@ func overlayCampaignMoney(configured, reported campaignModel) campaignModel {
 	reported.BudgetCurrency = preferAmount(configured.BudgetCurrency, reported.BudgetCurrency)
 	reported.DailyBudgetAmount = preferAmount(configured.DailyBudgetAmount, reported.DailyBudgetAmount)
 	reported.DailyBudgetCurrency = preferAmount(configured.DailyBudgetCurrency, reported.DailyBudgetCurrency)
+	reported.TargetCpaAmount = preferAmount(configured.TargetCpaAmount, reported.TargetCpaAmount)
+	reported.TargetCpaCurrency = preferAmount(configured.TargetCpaCurrency, reported.TargetCpaCurrency)
 	return reported
 }
 

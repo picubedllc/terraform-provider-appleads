@@ -98,6 +98,9 @@ func campaignUpdateFromPlan(ctx context.Context, plan campaignModel) (*client.Ca
 	daily, d := moneyFromStrings(plan.DailyBudgetAmount, plan.DailyBudgetCurrency)
 	diags.Append(d...)
 	upd.DailyBudgetAmount = daily
+	targetCpa, d := moneyFromStrings(plan.TargetCpaAmount, plan.TargetCpaCurrency)
+	diags.Append(d...)
+	upd.TargetCpa = targetCpa
 	orders, d := int64ListFromStrings(ctx, plan.BudgetOrders)
 	diags.Append(d...)
 	upd.BudgetOrders = orders

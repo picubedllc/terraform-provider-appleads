@@ -52,15 +52,13 @@ type campaignResource struct {
 //
 // Mutable — in-place Update:
 //   - name, status, budget_amount, daily_budget_amount, budget_orders, end_time,
-//     bidding_strategy
+//     bidding_strategy, target_cpa_amount, target_cpa_currency
 //
 // Create optional / computed:
 //   - start_time (passed on create; Apple may assign when omitted)
 //
 // Computed:
 //   - id, payment_model, serving_status, display_status, modification_time
-//
-// TODO(PR4/#44): target_cpa_amount / target_cpa_currency (required for MAX_CONVERSIONS).
 type campaignModel struct {
 	ID                  types.String `tfsdk:"id"`
 	Name                types.String `tfsdk:"name"`
@@ -71,6 +69,8 @@ type campaignModel struct {
 	AdChannelType       types.String `tfsdk:"ad_channel_type"`
 	BillingEvent        types.String `tfsdk:"billing_event"`
 	BiddingStrategy     types.String `tfsdk:"bidding_strategy"`
+	TargetCpaAmount     types.String `tfsdk:"target_cpa_amount"`
+	TargetCpaCurrency   types.String `tfsdk:"target_cpa_currency"`
 	BudgetAmount        types.String `tfsdk:"budget_amount"`
 	BudgetCurrency      types.String `tfsdk:"budget_currency"`
 	DailyBudgetAmount   types.String `tfsdk:"daily_budget_amount"`
@@ -214,10 +214,25 @@ func (r *campaignResource) Schema(ctx context.Context, req resource.SchemaReques
 			"bidding_strategy": schema.StringAttribute{
 				Optional:            true,
 				Computed:            true,
-				MarkdownDescription: "Bidding strategy (mutable): `MANUAL_CPT` or `MAX_CONVERSIONS`. Defaults to `MANUAL_CPT`. `MAX_CONVERSIONS` requires Search Results supply; target CPA schema lands in a follow-up.",
+				MarkdownDescription: "Bidding strategy (mutable): `MANUAL_CPT` or `MAX_CONVERSIONS`. Defaults to `MANUAL_CPT`. `MAX_CONVERSIONS` requires Search Results supply and `target_cpa_amount`.",
 				Validators: []validator.String{
 					stringvalidator.OneOf(client.BiddingStrategyManualCPT, client.BiddingStrategyMaxConversions),
 				},
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
+			},
+			"target_cpa_amount": schema.StringAttribute{
+				Optional:            true,
+				MarkdownDescription: "Target CPA amount as a decimal string (mutable). Required when `bidding_strategy` is `MAX_CONVERSIONS`. Never use floating point.",
+				Validators: []validator.String{
+					stringvalidator.RegexMatches(moneyAmountRegexp, "target_cpa_amount must be a positive decimal string (e.g. \"10.00\")"),
+				},
+			},
+			"target_cpa_currency": schema.StringAttribute{
+				Optional:            true,
+				Computed:            true,
+				MarkdownDescription: "Currency code for target_cpa_amount (e.g. USD).",
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.UseStateForUnknown(),
 				},

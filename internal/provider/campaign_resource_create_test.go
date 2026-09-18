@@ -292,20 +292,27 @@ func TestCampaignCreateFromPlan_ExplicitBiddingStrategy(t *testing.T) {
 		t.Fatal(diags)
 	}
 	in, diags := campaignCreateFromPlan(ctx, campaignModel{
-		Name:               types.StringValue("Max Conv"),
-		AdamID:             types.StringValue("1234567890"),
-		CountriesOrRegions: countries,
-		SupplySources:      supply,
-		AdChannelType:      types.StringValue(client.AdChannelTypeSearch),
-		BillingEvent:       types.StringValue(client.BillingEventTaps),
-		BiddingStrategy:    types.StringValue(client.BiddingStrategyMaxConversions),
-		BudgetOrders:       types.ListNull(types.StringType),
+		Name:                types.StringValue("Max Conv"),
+		AdamID:              types.StringValue("1234567890"),
+		CountriesOrRegions:  countries,
+		SupplySources:       supply,
+		AdChannelType:       types.StringValue(client.AdChannelTypeSearch),
+		BillingEvent:        types.StringValue(client.BillingEventTaps),
+		BiddingStrategy:     types.StringValue(client.BiddingStrategyMaxConversions),
+		TargetCpaAmount:     types.StringValue("10.00"),
+		TargetCpaCurrency:   types.StringValue("USD"),
+		DailyBudgetAmount:   types.StringValue("5.00"),
+		DailyBudgetCurrency: types.StringValue("USD"),
+		BudgetOrders:        types.ListNull(types.StringType),
 	})
 	if diags.HasError() {
 		t.Fatalf("%v", diags)
 	}
 	if in.BiddingStrategy != client.BiddingStrategyMaxConversions {
 		t.Fatalf("biddingStrategy = %q", in.BiddingStrategy)
+	}
+	if in.TargetCpa == nil || in.TargetCpa.Amount != "10.00" || in.TargetCpa.Currency != "USD" {
+		t.Fatalf("targetCpa = %#v", in.TargetCpa)
 	}
 }
 
@@ -321,6 +328,7 @@ func TestCampaignModelFromClient_BiddingStrategy(t *testing.T) {
 		AdChannelType:      client.AdChannelTypeSearch,
 		BillingEvent:       client.BillingEventTaps,
 		BiddingStrategy:    client.BiddingStrategyMaxConversions,
+		TargetCpa:          &client.Money{Amount: "10.00", Currency: "USD"},
 		CountriesOrRegions: []string{"US"},
 		SupplySources:      []string{client.SupplySourceSearchResults},
 	})
@@ -329,6 +337,9 @@ func TestCampaignModelFromClient_BiddingStrategy(t *testing.T) {
 	}
 	if state.BiddingStrategy.ValueString() != client.BiddingStrategyMaxConversions {
 		t.Fatalf("bidding_strategy = %q", state.BiddingStrategy.ValueString())
+	}
+	if state.TargetCpaAmount.ValueString() != "10.00" || state.TargetCpaCurrency.ValueString() != "USD" {
+		t.Fatalf("target_cpa = %q %q", state.TargetCpaAmount.ValueString(), state.TargetCpaCurrency.ValueString())
 	}
 }
 
@@ -427,20 +438,31 @@ func TestOverlayCampaignMoney_KeepsConfiguredScale(t *testing.T) {
 	configured := campaignModel{
 		DailyBudgetAmount:   types.StringValue("5.00"),
 		DailyBudgetCurrency: types.StringValue("USD"),
+		TargetCpaAmount:     types.StringValue("10.00"),
+		TargetCpaCurrency:   types.StringValue("USD"),
 	}
 	reported := campaignModel{
 		DailyBudgetAmount:   types.StringValue("5"),
 		DailyBudgetCurrency: types.StringValue("USD"),
+		TargetCpaAmount:     types.StringValue("10"),
+		TargetCpaCurrency:   types.StringValue("USD"),
 	}
 	out := overlayCampaignMoney(configured, reported)
 	if out.DailyBudgetAmount.ValueString() != "5.00" {
 		t.Fatalf("amount = %q", out.DailyBudgetAmount.ValueString())
 	}
+	if out.TargetCpaAmount.ValueString() != "10.00" {
+		t.Fatalf("target_cpa_amount = %q", out.TargetCpaAmount.ValueString())
+	}
 
 	reported.DailyBudgetAmount = types.StringValue("6")
+	reported.TargetCpaAmount = types.StringValue("12")
 	out = overlayCampaignMoney(configured, reported)
 	if out.DailyBudgetAmount.ValueString() != "6" {
 		t.Fatalf("changed amount should keep API value, got %q", out.DailyBudgetAmount.ValueString())
+	}
+	if out.TargetCpaAmount.ValueString() != "12" {
+		t.Fatalf("changed target_cpa should keep API value, got %q", out.TargetCpaAmount.ValueString())
 	}
 }
 
