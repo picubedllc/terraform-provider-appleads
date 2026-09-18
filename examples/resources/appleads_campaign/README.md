@@ -12,6 +12,15 @@ Manages an Apple Ads campaign.
 `bidding_strategy` and `target_cpa_amount` / `target_cpa_currency` are mutable —
 you can switch strategies and change target CPA in place when the API allows.
 
+## Maximize Conversions automated ad group
+
+Apple may auto-create an Automated Ad Group after a Max Conversions campaign
+create. That group is **outside Terraform state** until you import it as a
+normal [`appleads_ad_group`](../appleads_ad_group/) using
+`campaign_id/ad_group_id` or bare `ad_group_id`. See the ad group example README
+for the import workflow and keyword / default-bid caveats. Display is not
+valid with Max Conversions.
+
 ## Import
 
 ```bash

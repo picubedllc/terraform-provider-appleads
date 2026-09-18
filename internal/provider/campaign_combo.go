@@ -32,7 +32,24 @@ Apple Ads Campaign Management API v5 allows these combinations only:
 
 ` + "`MAX_CONVERSIONS`" + ` requires Search Results supply and a positive ` + "`target_cpa_amount`" + `.
 
-**Display note:** Configuring a Display campaign is supported for create/read, but end-to-end delivery still requires creatives/ads (not yet managed by this provider).
+**Display note:** Configuring a Display campaign is supported for create/read, but end-to-end delivery still requires creatives/ads (not yet managed by this provider). Max Conversions does not apply to Display.
+
+## Maximize Conversions automated ad group
+
+When Apple accepts a Maximize Conversions campaign create, it may auto-create an Automated Ad Group (Search Match on, broad audience, default product page ad) **outside Terraform state**. That object is a normal ` + "`appleads_ad_group`" + ` — this provider does **not** invent a separate automated-ad-group resource type.
+
+Recommended workflow after create:
+
+1. Create the ` + "`appleads_campaign`" + ` with ` + "`bidding_strategy = MAX_CONVERSIONS`" + ` and ` + "`target_cpa_amount`" + `.
+2. List ad groups for the campaign (Apple API or UI). The auto-created group may appear after a short delay; the campaign can sit in an ad-group-missing serving state until then.
+3. Import it with the existing ` + "`appleads_ad_group`" + ` import formats: ` + "`campaign_id/ad_group_id`" + ` (preferred) or bare ` + "`ad_group_id`" + `.
+4. Manage ` + "`target_cpa_amount`" + ` on the campaign as usual; do not create a second Terraform ad group that duplicates Apple's automated one.
+
+**Known limitations under Max Conversions:**
+
+- Keyword semantics differ from Manual CPT: Apple's auto-bidder drives delivery; additional keywords are closer to guides/pauses than classic CPT bids.
+- Ad group ` + "`default_bid_amount`" + ` may be ignored or constrained by the campaign-level target CPA auto-bidder.
+- Display channel / Display supplies are not valid with Max Conversions.
 `
 
 func (r *campaignResource) ValidateConfig(ctx context.Context, req resource.ValidateConfigRequest, resp *resource.ValidateConfigResponse) {
