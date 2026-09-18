@@ -38,7 +38,7 @@ func TestCampaignResource_SchemaMutableImmutableClassification(t *testing.T) {
 		}
 	}
 
-	mutable := []string{"name", "status", "budget_amount", "daily_budget_amount", "budget_orders", "end_time"}
+	mutable := []string{"name", "status", "budget_amount", "daily_budget_amount", "budget_orders", "end_time", "bidding_strategy"}
 	for _, name := range mutable {
 		attr, ok := resp.Schema.Attributes[name]
 		if !ok {

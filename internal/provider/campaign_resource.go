@@ -25,8 +25,9 @@ import (
 var moneyAmountRegexp = regexp.MustCompile(`^(?:0|[1-9]\d*)(?:\.\d+)?$`)
 
 var (
-	_ resource.Resource                = &campaignResource{}
-	_ resource.ResourceWithImportState = &campaignResource{}
+	_ resource.Resource                   = &campaignResource{}
+	_ resource.ResourceWithImportState    = &campaignResource{}
+	_ resource.ResourceWithValidateConfig = &campaignResource{}
 )
 
 func NewCampaignResource() resource.Resource {
@@ -50,13 +51,16 @@ type campaignResource struct {
 //   - billing_event
 //
 // Mutable — in-place Update:
-//   - name, status, budget_amount, daily_budget_amount, budget_orders, end_time
+//   - name, status, budget_amount, daily_budget_amount, budget_orders, end_time,
+//     bidding_strategy
 //
 // Create optional / computed:
 //   - start_time (passed on create; Apple may assign when omitted)
 //
 // Computed:
 //   - id, payment_model, serving_status, display_status, modification_time
+//
+// TODO(PR4/#44): target_cpa_amount / target_cpa_currency (required for MAX_CONVERSIONS).
 type campaignModel struct {
 	ID                  types.String `tfsdk:"id"`
 	Name                types.String `tfsdk:"name"`
@@ -66,6 +70,7 @@ type campaignModel struct {
 	SupplySources       types.List   `tfsdk:"supply_sources"`
 	AdChannelType       types.String `tfsdk:"ad_channel_type"`
 	BillingEvent        types.String `tfsdk:"billing_event"`
+	BiddingStrategy     types.String `tfsdk:"bidding_strategy"`
 	BudgetAmount        types.String `tfsdk:"budget_amount"`
 	BudgetCurrency      types.String `tfsdk:"budget_currency"`
 	DailyBudgetAmount   types.String `tfsdk:"daily_budget_amount"`
@@ -86,7 +91,8 @@ func (r *campaignResource) Metadata(ctx context.Context, req resource.MetadataRe
 func (r *campaignResource) Schema(ctx context.Context, req resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		MarkdownDescription: "Manages an Apple Ads campaign. Immutable fields never trigger automatic replacement; " +
-			"changing them returns an error diagnostic so historical campaign identity is preserved.",
+			"changing them returns an error diagnostic so historical campaign identity is preserved." +
+			campaignComboMarkdown,
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
 				Computed:            true,
@@ -175,7 +181,10 @@ func (r *campaignResource) Schema(ctx context.Context, req resource.SchemaReques
 				Optional:            true,
 				Computed:            true,
 				ElementType:         types.StringType,
-				MarkdownDescription: "Supply sources such as `APPSTORE_SEARCH_RESULTS` (immutable). Order is not significant; Apple may return a different order and the provider keeps the configured order when the set is unchanged.",
+				MarkdownDescription: "Supply sources (immutable). `SEARCH` requires `APPSTORE_SEARCH_RESULTS`. `DISPLAY` requires one of `APPSTORE_TODAY_TAB`, `APPSTORE_SEARCH_TAB`, or `APPSTORE_PRODUCT_PAGES_BROWSE`. Order is not significant; Apple may return a different order and the provider keeps the configured order when the set is unchanged.",
+				Validators: []validator.List{
+					listvalidator.ValueStringsAre(stringvalidator.OneOf(campaignSupplySourceValues()...)),
+				},
 				PlanModifiers: []planmodifier.List{
 					listplanmodifier.UseStateForUnknown(),
 				},
@@ -183,7 +192,10 @@ func (r *campaignResource) Schema(ctx context.Context, req resource.SchemaReques
 			"ad_channel_type": schema.StringAttribute{
 				Optional:            true,
 				Computed:            true,
-				MarkdownDescription: "Ad channel type such as `SEARCH` or `DISPLAY` (immutable). Defaults to `SEARCH` when omitted.",
+				MarkdownDescription: "Ad channel type: `SEARCH` or `DISPLAY` (immutable). Defaults to `SEARCH` when omitted. Must match supply_sources and bidding_strategy (see resource docs matrix).",
+				Validators: []validator.String{
+					stringvalidator.OneOf(client.AdChannelTypeSearch, client.AdChannelTypeDisplay),
+				},
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.UseStateForUnknown(),
 				},
@@ -191,7 +203,21 @@ func (r *campaignResource) Schema(ctx context.Context, req resource.SchemaReques
 			"billing_event": schema.StringAttribute{
 				Optional:            true,
 				Computed:            true,
-				MarkdownDescription: "Billing event such as `TAPS` (immutable). Defaults to `TAPS` when omitted.",
+				MarkdownDescription: "Billing event (immutable). Only `TAPS` is supported; defaults to `TAPS` when omitted.",
+				Validators: []validator.String{
+					stringvalidator.OneOf(client.BillingEventTaps),
+				},
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
+			},
+			"bidding_strategy": schema.StringAttribute{
+				Optional:            true,
+				Computed:            true,
+				MarkdownDescription: "Bidding strategy (mutable): `MANUAL_CPT` or `MAX_CONVERSIONS`. Defaults to `MANUAL_CPT`. `MAX_CONVERSIONS` requires Search Results supply; target CPA schema lands in a follow-up.",
+				Validators: []validator.String{
+					stringvalidator.OneOf(client.BiddingStrategyManualCPT, client.BiddingStrategyMaxConversions),
+				},
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.UseStateForUnknown(),
 				},

@@ -130,9 +130,11 @@ func campaignCreateFromPlan(ctx context.Context, plan campaignModel) (*client.Ca
 	} else {
 		in.BillingEvent = client.BillingEventTaps
 	}
-	// Bidding strategy is not yet a schema attribute; Search Results creates
-	// still need MANUAL_CPT (proven against API v5).
-	in.BiddingStrategy = client.BiddingStrategyManualCPT
+	if !plan.BiddingStrategy.IsNull() && !plan.BiddingStrategy.IsUnknown() && plan.BiddingStrategy.ValueString() != "" {
+		in.BiddingStrategy = plan.BiddingStrategy.ValueString()
+	} else {
+		in.BiddingStrategy = client.BiddingStrategyManualCPT
+	}
 
 	if !plan.StartTime.IsNull() && !plan.StartTime.IsUnknown() && plan.StartTime.ValueString() != "" {
 		in.StartTime = plan.StartTime.ValueString()
@@ -152,6 +154,7 @@ func campaignModelFromClient(ctx context.Context, c *client.Campaign) (campaignM
 	m.Status = types.StringValue(c.Status)
 	m.AdChannelType = types.StringValue(c.AdChannelType)
 	m.BillingEvent = types.StringValue(c.BillingEvent)
+	m.BiddingStrategy = types.StringValue(c.BiddingStrategy)
 	m.PaymentModel = types.StringValue(c.PaymentModel)
 	m.ServingStatus = types.StringValue(c.ServingStatus)
 	m.DisplayStatus = types.StringValue(c.DisplayStatus)
