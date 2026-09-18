@@ -3,6 +3,31 @@
 
 package client
 
+// Bidding strategy values for Campaign.BiddingStrategy (API v5).
+const (
+	BiddingStrategyManualCPT      = "MANUAL_CPT"
+	BiddingStrategyMaxConversions = "MAX_CONVERSIONS"
+)
+
+// Ad channel type values for Campaign.AdChannelType (API v5).
+const (
+	AdChannelTypeSearch  = "SEARCH"
+	AdChannelTypeDisplay = "DISPLAY"
+)
+
+// Supply source values for Campaign.SupplySources (API v5).
+const (
+	SupplySourceSearchResults      = "APPSTORE_SEARCH_RESULTS"
+	SupplySourceTodayTab           = "APPSTORE_TODAY_TAB"
+	SupplySourceSearchTab          = "APPSTORE_SEARCH_TAB"
+	SupplySourceProductPagesBrowse = "APPSTORE_PRODUCT_PAGES_BROWSE"
+)
+
+// Billing event values for Campaign.BillingEvent (API v5).
+const (
+	BillingEventTaps = "TAPS"
+)
+
 // Campaign is an Apple Ads campaign (API v5).
 //
 // Mutability (Terraform classification — confirmed against Apple Ads Campaign
@@ -13,17 +38,23 @@ package client
 //	  - CountriesOrRegions
 //	  - SupplySources
 //	  - AdChannelType
+//	  - BillingEvent (tied to channel/supply at create)
 //
 //	Mutable (in-place update supported):
 //	  - Name
 //	  - Status
-//	  - BudgetAmount
 //	  - DailyBudgetAmount
 //	  - BudgetOrders
 //	  - EndTime
+//	  - BiddingStrategy
+//	  - TargetCpa (required when BiddingStrategy is MAX_CONVERSIONS)
+//
+//	Create-only / probe-dependent:
+//	  - BudgetAmount — Apple documents create-only; live probes confirm update behavior
+//	  - StartTime — settable on create; update support is probe-dependent
 //
 //	Computed / read-only from Apple:
-//	  - ID, OrgID, ServingStatus, DisplayStatus, ServingStateReasons,
+//	  - ID, OrgID, PaymentModel, ServingStatus, DisplayStatus, ServingStateReasons,
 //	    ModificationTime, Deleted, CountryOrRegionServingStateReasons
 type Campaign struct {
 	ID                                 int64               `json:"id,omitempty"`
@@ -42,6 +73,7 @@ type Campaign struct {
 	AdChannelType                      string              `json:"adChannelType,omitempty"`
 	BillingEvent                       string              `json:"billingEvent,omitempty"`
 	BiddingStrategy                    string              `json:"biddingStrategy,omitempty"`
+	TargetCpa                          *Money              `json:"targetCpa,omitempty"`
 	BudgetOrders                       []int64             `json:"budgetOrders,omitempty"`
 	StartTime                          string              `json:"startTime,omitempty"`
 	EndTime                            string              `json:"endTime,omitempty"`
@@ -65,6 +97,7 @@ type CampaignCreate struct {
 	AdChannelType      string   `json:"adChannelType,omitempty"`
 	BillingEvent       string   `json:"billingEvent,omitempty"`
 	BiddingStrategy    string   `json:"biddingStrategy,omitempty"`
+	TargetCpa          *Money   `json:"targetCpa,omitempty"`
 	BudgetOrders       []int64  `json:"budgetOrders,omitempty"`
 	StartTime          string   `json:"startTime,omitempty"`
 	EndTime            string   `json:"endTime,omitempty"`
@@ -78,6 +111,9 @@ type CampaignUpdate struct {
 	BudgetAmount      *Money  `json:"budgetAmount,omitempty"`
 	DailyBudgetAmount *Money  `json:"dailyBudgetAmount,omitempty"`
 	BudgetOrders      []int64 `json:"budgetOrders,omitempty"`
+	BiddingStrategy   string  `json:"biddingStrategy,omitempty"`
+	TargetCpa         *Money  `json:"targetCpa,omitempty"`
+	StartTime         string  `json:"startTime,omitempty"`
 	EndTime           string  `json:"endTime,omitempty"`
 	ClearEndTime      bool    `json:"-"` // sentinel handled by marshal helper when needed
 }
