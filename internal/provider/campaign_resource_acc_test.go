@@ -49,6 +49,10 @@ resource "appleads_campaign" "test" {
 					resource.TestCheckResourceAttr("appleads_campaign.test", "name", namePrefix+"-create"),
 					resource.TestCheckResourceAttr("appleads_campaign.test", "status", "PAUSED"),
 					resource.TestCheckResourceAttr("appleads_campaign.test", "daily_budget_amount", "1.00"),
+					resource.TestCheckResourceAttr("appleads_campaign.test", "billing_event", "TAPS"),
+					resource.TestCheckResourceAttr("appleads_campaign.test", "ad_channel_type", "SEARCH"),
+					resource.TestCheckResourceAttrSet("appleads_campaign.test", "payment_model"),
+					resource.TestCheckResourceAttrSet("appleads_campaign.test", "start_time"),
 				),
 			},
 			// Update mutable fields

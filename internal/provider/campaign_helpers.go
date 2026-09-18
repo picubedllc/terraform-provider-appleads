@@ -110,19 +110,32 @@ func campaignCreateFromPlan(ctx context.Context, plan campaignModel) (*client.Ca
 		DailyBudgetAmount:  daily,
 		SupplySources:      supply,
 		BudgetOrders:       orders,
-		// SEARCH create defaults proven against API v5 (Apple's example + live POST).
-		AdChannelType:   "SEARCH",
-		BillingEvent:    "TAPS",
-		BiddingStrategy: "MANUAL_CPT",
 	}
 	if !plan.Status.IsNull() && !plan.Status.IsUnknown() && plan.Status.ValueString() != "" {
 		in.Status = plan.Status.ValueString()
 	}
+
+	// Defaults apply only when omitted. When the plan sets channel or supply,
+	// do not overwrite with Search Results values.
 	if !plan.AdChannelType.IsNull() && !plan.AdChannelType.IsUnknown() && plan.AdChannelType.ValueString() != "" {
 		in.AdChannelType = plan.AdChannelType.ValueString()
+	} else {
+		in.AdChannelType = client.AdChannelTypeSearch
 	}
 	if len(in.SupplySources) == 0 {
-		in.SupplySources = []string{"APPSTORE_SEARCH_RESULTS"}
+		in.SupplySources = []string{client.SupplySourceSearchResults}
+	}
+	if !plan.BillingEvent.IsNull() && !plan.BillingEvent.IsUnknown() && plan.BillingEvent.ValueString() != "" {
+		in.BillingEvent = plan.BillingEvent.ValueString()
+	} else {
+		in.BillingEvent = client.BillingEventTaps
+	}
+	// Bidding strategy is not yet a schema attribute; Search Results creates
+	// still need MANUAL_CPT (proven against API v5).
+	in.BiddingStrategy = client.BiddingStrategyManualCPT
+
+	if !plan.StartTime.IsNull() && !plan.StartTime.IsUnknown() && plan.StartTime.ValueString() != "" {
+		in.StartTime = plan.StartTime.ValueString()
 	}
 	if !plan.EndTime.IsNull() && !plan.EndTime.IsUnknown() {
 		in.EndTime = plan.EndTime.ValueString()
@@ -138,9 +151,16 @@ func campaignModelFromClient(ctx context.Context, c *client.Campaign) (campaignM
 	m.AdamID = types.StringValue(strconv.FormatInt(c.AdamID, 10))
 	m.Status = types.StringValue(c.Status)
 	m.AdChannelType = types.StringValue(c.AdChannelType)
+	m.BillingEvent = types.StringValue(c.BillingEvent)
+	m.PaymentModel = types.StringValue(c.PaymentModel)
 	m.ServingStatus = types.StringValue(c.ServingStatus)
 	m.DisplayStatus = types.StringValue(c.DisplayStatus)
 	m.ModificationTime = types.StringValue(c.ModificationTime)
+	if c.StartTime != "" {
+		m.StartTime = types.StringValue(c.StartTime)
+	} else {
+		m.StartTime = types.StringNull()
+	}
 	if c.EndTime != "" {
 		m.EndTime = types.StringValue(c.EndTime)
 	} else {
@@ -185,12 +205,27 @@ func campaignModelFromClient(ctx context.Context, c *client.Campaign) (campaignM
 	return m, diags
 }
 
-// overlayCampaignReported keeps configured money scale and list order when
-// Apple only reformats those values, so Create/Read/Update do not fail
-// Terraform's after-apply consistency check.
+// overlayCampaignReported keeps configured money scale, list order, and
+// start_time when Apple only reformats those values, so Create/Read/Update
+// do not fail Terraform's after-apply consistency check.
 func overlayCampaignReported(ctx context.Context, configured, reported campaignModel) (campaignModel, diag.Diagnostics) {
 	reported = overlayCampaignMoney(configured, reported)
+	reported = overlayCampaignStartTime(configured, reported)
 	return overlayCampaignLists(ctx, configured, reported)
+}
+
+// overlayCampaignStartTime keeps the configured start_time string when the
+// plan set one, so millisecond-precision create values survive Apple's
+// response formatting.
+func overlayCampaignStartTime(configured, reported campaignModel) campaignModel {
+	if configured.StartTime.IsNull() || configured.StartTime.IsUnknown() || configured.StartTime.ValueString() == "" {
+		return reported
+	}
+	if reported.StartTime.IsNull() || reported.StartTime.IsUnknown() {
+		return reported
+	}
+	reported.StartTime = configured.StartTime
+	return reported
 }
 
 // overlayCampaignMoney keeps configured decimal strings when Apple normalizes
