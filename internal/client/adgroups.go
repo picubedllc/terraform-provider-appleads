@@ -196,10 +196,6 @@ func (u AdGroupUpdate) MarshalJSON() ([]byte, error) {
 	return json.Marshal(w)
 }
 
-type adGroupUpdateEnvelope struct {
-	AdGroup *AdGroupUpdate `json:"adGroup"`
-}
-
 func (c *Client) CreateAdGroup(ctx context.Context, campaignID int64, in *AdGroupCreate) (*AdGroup, error) {
 	if in == nil {
 		return nil, fmt.Errorf("ad group create payload is required")
@@ -222,9 +218,15 @@ func (c *Client) GetAdGroup(ctx context.Context, campaignID, adGroupID int64) (*
 }
 
 func (c *Client) UpdateAdGroup(ctx context.Context, campaignID, adGroupID int64, in *AdGroupUpdate) (*AdGroup, error) {
+	if in == nil {
+		return nil, fmt.Errorf("ad group update payload is required")
+	}
 	var env Response[AdGroup]
 	path := fmt.Sprintf("campaigns/%d/adgroups/%d", campaignID, adGroupID)
-	if err := c.DoJSON(ctx, http.MethodPut, path, adGroupUpdateEnvelope{AdGroup: in}, &env); err != nil {
+	// Apple Ads PUT /adgroups/{id} takes a bare partial AdGroup body (not wrapped
+	// in {"adGroup":...}). Campaign updates use a campaign envelope; ad groups do not.
+	// Sending {"adGroup":...} returns UNRECOGNIZED_PROPERTY on field [adGroup].
+	if err := c.DoJSON(ctx, http.MethodPut, path, in, &env); err != nil {
 		return nil, err
 	}
 	return &env.Data, nil

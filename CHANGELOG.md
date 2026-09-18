@@ -1,5 +1,13 @@
 ## Unreleased
 
+## 0.3.4
+
+BUG FIXES:
+
+* Send Apple Ads ad group updates as a bare partial body. PUT `/campaigns/{id}/adgroups/{id}` does not use an `{"adGroup":...}` envelope (unlike campaigns); the wrapper caused `UNRECOGNIZED_PROPERTY` on field `[adGroup]` when setting `targeting_dimensions` (including locality).
+
+## 0.3.3
+
 FEATURES:
 
 * Add optional `targeting_dimensions` on `appleads_ad_group` mapped to Apple Ads `targetingDimensions`, including geo (`locality`, `admin_area`, `country`) plus age, gender, `device_class`, `daypart`, and `app_downloaders`. City targeting uses locality IDs such as `US|NY|New York` (single-country campaigns only).
