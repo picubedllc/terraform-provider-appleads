@@ -174,3 +174,207 @@ func TestCreateCampaign_MoneyRoundTripNoFloat(t *testing.T) {
 		t.Fatalf("amount = %q", out.DailyBudgetAmount.Amount)
 	}
 }
+
+func TestCreateCampaign_MaxConversionsPayload(t *testing.T) {
+	t.Parallel()
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body CampaignCreate
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Fatal(err)
+		}
+		if body.BiddingStrategy != BiddingStrategyMaxConversions {
+			t.Fatalf("biddingStrategy = %q", body.BiddingStrategy)
+		}
+		if body.TargetCpa == nil || body.TargetCpa.Amount != "10.00" || body.TargetCpa.Currency != "USD" {
+			t.Fatalf("targetCpa = %#v", body.TargetCpa)
+		}
+		if body.AdChannelType != AdChannelTypeSearch {
+			t.Fatalf("adChannelType = %q", body.AdChannelType)
+		}
+		if len(body.SupplySources) != 1 || body.SupplySources[0] != SupplySourceSearchResults {
+			t.Fatalf("supplySources = %#v", body.SupplySources)
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"data": map[string]any{
+				"id":              77,
+				"name":            body.Name,
+				"biddingStrategy": body.BiddingStrategy,
+				"targetCpa":       map[string]string{"amount": "10.00", "currency": "USD"},
+				"adChannelType":   body.AdChannelType,
+				"supplySources":   body.SupplySources,
+				"billingEvent":    body.BillingEvent,
+				"paymentModel":    "PAYG",
+			},
+		})
+	}))
+	t.Cleanup(srv.Close)
+
+	c, err := New(WithBaseURL(srv.URL))
+	if err != nil {
+		t.Fatal(err)
+	}
+	out, err := c.CreateCampaign(context.Background(), &CampaignCreate{
+		Name:               "MaxConv",
+		AdamID:             1,
+		CountriesOrRegions: []string{"US"},
+		AdChannelType:      AdChannelTypeSearch,
+		SupplySources:      []string{SupplySourceSearchResults},
+		BillingEvent:       BillingEventTaps,
+		BiddingStrategy:    BiddingStrategyMaxConversions,
+		TargetCpa:          &Money{Amount: "10.00", Currency: "USD"},
+		DailyBudgetAmount:  &Money{Amount: "50.00", Currency: "USD"},
+		Status:             "PAUSED",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out.ID != 77 || out.BiddingStrategy != BiddingStrategyMaxConversions {
+		t.Fatalf("out = %#v", out)
+	}
+	if out.TargetCpa == nil || out.TargetCpa.Amount != "10.00" {
+		t.Fatalf("targetCpa = %#v", out.TargetCpa)
+	}
+	if out.PaymentModel != "PAYG" {
+		t.Fatalf("paymentModel = %q", out.PaymentModel)
+	}
+}
+
+func TestCreateCampaign_DisplayTodayTabPayload(t *testing.T) {
+	t.Parallel()
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body CampaignCreate
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Fatal(err)
+		}
+		if body.AdChannelType != AdChannelTypeDisplay {
+			t.Fatalf("adChannelType = %q", body.AdChannelType)
+		}
+		if len(body.SupplySources) != 1 || body.SupplySources[0] != SupplySourceTodayTab {
+			t.Fatalf("supplySources = %#v", body.SupplySources)
+		}
+		if body.BillingEvent != BillingEventTaps {
+			t.Fatalf("billingEvent = %q", body.BillingEvent)
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"data": map[string]any{
+				"id":            88,
+				"name":          body.Name,
+				"adChannelType": body.AdChannelType,
+				"supplySources": body.SupplySources,
+				"billingEvent":  body.BillingEvent,
+			},
+		})
+	}))
+	t.Cleanup(srv.Close)
+
+	c, err := New(WithBaseURL(srv.URL))
+	if err != nil {
+		t.Fatal(err)
+	}
+	out, err := c.CreateCampaign(context.Background(), &CampaignCreate{
+		Name:               "Today",
+		AdamID:             1,
+		CountriesOrRegions: []string{"US"},
+		AdChannelType:      AdChannelTypeDisplay,
+		SupplySources:      []string{SupplySourceTodayTab},
+		BillingEvent:       BillingEventTaps,
+		BiddingStrategy:    BiddingStrategyManualCPT,
+		DailyBudgetAmount:  &Money{Amount: "25.00", Currency: "USD"},
+		Status:             "PAUSED",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out.ID != 88 || out.AdChannelType != AdChannelTypeDisplay {
+		t.Fatalf("out = %#v", out)
+	}
+}
+
+func TestUpdateCampaign_BiddingStrategyAndTargetCpa(t *testing.T) {
+	t.Parallel()
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPut || r.URL.Path != "/campaigns/9" {
+			t.Fatalf("unexpected %s %s", r.Method, r.URL.Path)
+		}
+		var envelope struct {
+			Campaign CampaignUpdate `json:"campaign"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&envelope); err != nil {
+			t.Fatal(err)
+		}
+		if envelope.Campaign.BiddingStrategy != BiddingStrategyMaxConversions {
+			t.Fatalf("biddingStrategy = %q", envelope.Campaign.BiddingStrategy)
+		}
+		if envelope.Campaign.TargetCpa == nil || envelope.Campaign.TargetCpa.Amount != "12.00" {
+			t.Fatalf("targetCpa = %#v", envelope.Campaign.TargetCpa)
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"data": map[string]any{
+				"id":              9,
+				"biddingStrategy": envelope.Campaign.BiddingStrategy,
+				"targetCpa":       map[string]string{"amount": "12.00", "currency": "USD"},
+			},
+		})
+	}))
+	t.Cleanup(srv.Close)
+
+	c, err := New(WithBaseURL(srv.URL))
+	if err != nil {
+		t.Fatal(err)
+	}
+	out, err := c.UpdateCampaign(context.Background(), 9, &CampaignUpdate{
+		BiddingStrategy: BiddingStrategyMaxConversions,
+		TargetCpa:       &Money{Amount: "12.00", Currency: "USD"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out.BiddingStrategy != BiddingStrategyMaxConversions || out.TargetCpa.Amount != "12.00" {
+		t.Fatalf("out = %#v", out)
+	}
+}
+
+func TestUpdateCampaign_BudgetAmountPayload(t *testing.T) {
+	t.Parallel()
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var envelope struct {
+			Campaign CampaignUpdate `json:"campaign"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&envelope); err != nil {
+			t.Fatal(err)
+		}
+		if envelope.Campaign.BudgetAmount == nil || envelope.Campaign.BudgetAmount.Amount != "500.00" {
+			t.Fatalf("budgetAmount = %#v", envelope.Campaign.BudgetAmount)
+		}
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"error": map[string]any{
+				"errors": []map[string]string{{
+					"messageCode": "INVALID_ATTRIBUTE_VALUE",
+					"message":     "budgetAmount cannot be updated",
+					"field":       "budgetAmount",
+				}},
+			},
+		})
+	}))
+	t.Cleanup(srv.Close)
+
+	c, err := New(WithBaseURL(srv.URL))
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = c.UpdateCampaign(context.Background(), 1, &CampaignUpdate{
+		BudgetAmount: &Money{Amount: "500.00", Currency: "USD"},
+	})
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	apiErr, ok := err.(*APIError)
+	if !ok || !strings.Contains(apiErr.Message, "budgetAmount") {
+		t.Fatalf("err = %v", err)
+	}
+}
