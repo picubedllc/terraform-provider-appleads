@@ -279,6 +279,59 @@ func TestCampaignCreateFromPlan_StartTimePassThrough(t *testing.T) {
 	}
 }
 
+func TestCampaignCreateFromPlan_ExplicitBiddingStrategy(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	countries, diags := types.ListValueFrom(ctx, types.StringType, []string{"US"})
+	if diags.HasError() {
+		t.Fatal(diags)
+	}
+	supply, diags := types.ListValueFrom(ctx, types.StringType, []string{client.SupplySourceSearchResults})
+	if diags.HasError() {
+		t.Fatal(diags)
+	}
+	in, diags := campaignCreateFromPlan(ctx, campaignModel{
+		Name:               types.StringValue("Max Conv"),
+		AdamID:             types.StringValue("1234567890"),
+		CountriesOrRegions: countries,
+		SupplySources:      supply,
+		AdChannelType:      types.StringValue(client.AdChannelTypeSearch),
+		BillingEvent:       types.StringValue(client.BillingEventTaps),
+		BiddingStrategy:    types.StringValue(client.BiddingStrategyMaxConversions),
+		BudgetOrders:       types.ListNull(types.StringType),
+	})
+	if diags.HasError() {
+		t.Fatalf("%v", diags)
+	}
+	if in.BiddingStrategy != client.BiddingStrategyMaxConversions {
+		t.Fatalf("biddingStrategy = %q", in.BiddingStrategy)
+	}
+}
+
+func TestCampaignModelFromClient_BiddingStrategy(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	state, diags := campaignModelFromClient(ctx, &client.Campaign{
+		ID:                 77,
+		Name:               "Read",
+		AdamID:             9,
+		Status:             "PAUSED",
+		AdChannelType:      client.AdChannelTypeSearch,
+		BillingEvent:       client.BillingEventTaps,
+		BiddingStrategy:    client.BiddingStrategyMaxConversions,
+		CountriesOrRegions: []string{"US"},
+		SupplySources:      []string{client.SupplySourceSearchResults},
+	})
+	if diags.HasError() {
+		t.Fatalf("%v", diags)
+	}
+	if state.BiddingStrategy.ValueString() != client.BiddingStrategyMaxConversions {
+		t.Fatalf("bidding_strategy = %q", state.BiddingStrategy.ValueString())
+	}
+}
+
 func TestCampaignModelFromClient_PaymentModelAndBillingStart(t *testing.T) {
 	t.Parallel()
 

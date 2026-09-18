@@ -4,11 +4,32 @@ page_title: "appleads_campaign Resource - appleads"
 subcategory: ""
 description: |-
   Manages an Apple Ads campaign. Immutable fields never trigger automatic replacement; changing them returns an error diagnostic so historical campaign identity is preserved.
+  Channel / supply / billing / bidding matrix
+  Apple Ads Campaign Management API v5 allows these combinations only:
+  | Channel | Supply sources | Billing | Bidding |
+  |---|---|---|---|
+  | `SEARCH` | `APPSTORE_SEARCH_RESULTS` | `TAPS` | `MANUAL_CPT` or `MAX_CONVERSIONS` |
+  | `DISPLAY` | `APPSTORE_TODAY_TAB` / `APPSTORE_SEARCH_TAB` / `APPSTORE_PRODUCT_PAGES_BROWSE` | `TAPS` | `MANUAL_CPT` only |
+  MAX_CONVERSIONS requires Search Results supply. Target CPA schema support lands with bidding follow-up work (#44); until then Max Conversions may still need Apple-side target CPA.
+  Display note: Configuring a Display campaign is supported for create/read, but end-to-end delivery still requires creatives/ads (not yet managed by this provider).
 ---
 
 # appleads_campaign (Resource)
 
 Manages an Apple Ads campaign. Immutable fields never trigger automatic replacement; changing them returns an error diagnostic so historical campaign identity is preserved.
+
+## Channel / supply / billing / bidding matrix
+
+Apple Ads Campaign Management API v5 allows these combinations only:
+
+| Channel | Supply sources | Billing | Bidding |
+|---|---|---|---|
+| `SEARCH` | `APPSTORE_SEARCH_RESULTS` | `TAPS` | `MANUAL_CPT` or `MAX_CONVERSIONS` |
+| `DISPLAY` | `APPSTORE_TODAY_TAB` / `APPSTORE_SEARCH_TAB` / `APPSTORE_PRODUCT_PAGES_BROWSE` | `TAPS` | `MANUAL_CPT` only |
+
+`MAX_CONVERSIONS` requires Search Results supply. Target CPA schema support lands with bidding follow-up work (#44); until then Max Conversions may still need Apple-side target CPA.
+
+**Display note:** Configuring a Display campaign is supported for create/read, but end-to-end delivery still requires creatives/ads (not yet managed by this provider).
 
 
 
@@ -23,8 +44,9 @@ Manages an Apple Ads campaign. Immutable fields never trigger automatic replacem
 
 ### Optional
 
-- `ad_channel_type` (String) Ad channel type such as `SEARCH` or `DISPLAY` (immutable). Defaults to `SEARCH` when omitted.
-- `billing_event` (String) Billing event such as `TAPS` (immutable). Defaults to `TAPS` when omitted.
+- `ad_channel_type` (String) Ad channel type: `SEARCH` or `DISPLAY` (immutable). Defaults to `SEARCH` when omitted. Must match supply_sources and bidding_strategy (see resource docs matrix).
+- `bidding_strategy` (String) Bidding strategy (mutable): `MANUAL_CPT` or `MAX_CONVERSIONS`. Defaults to `MANUAL_CPT`. `MAX_CONVERSIONS` requires Search Results supply; target CPA schema lands in a follow-up.
+- `billing_event` (String) Billing event (immutable). Only `TAPS` is supported; defaults to `TAPS` when omitted.
 - `budget_amount` (String) Lifetime campaign budget amount as a decimal string (mutable). Never use floating point.
 - `budget_currency` (String) Currency code for budget_amount (e.g. USD).
 - `budget_orders` (List of String) Budget order identifiers associated with the campaign (mutable).
@@ -33,7 +55,7 @@ Manages an Apple Ads campaign. Immutable fields never trigger automatic replacem
 - `end_time` (String) Campaign end time in ISO-8601 format (mutable).
 - `start_time` (String) Campaign start time in ISO-8601 format. Use millisecond precision on create, e.g. `2026-01-01T00:00:00.000`. When omitted, Apple assigns the start time.
 - `status` (String) User-set campaign status: `ENABLED` or `PAUSED` (mutable).
-- `supply_sources` (List of String) Supply sources such as `APPSTORE_SEARCH_RESULTS` (immutable). Order is not significant; Apple may return a different order and the provider keeps the configured order when the set is unchanged.
+- `supply_sources` (List of String) Supply sources (immutable). `SEARCH` requires `APPSTORE_SEARCH_RESULTS`. `DISPLAY` requires one of `APPSTORE_TODAY_TAB`, `APPSTORE_SEARCH_TAB`, or `APPSTORE_PRODUCT_PAGES_BROWSE`. Order is not significant; Apple may return a different order and the provider keeps the configured order when the set is unchanged.
 
 ### Read-Only
 
