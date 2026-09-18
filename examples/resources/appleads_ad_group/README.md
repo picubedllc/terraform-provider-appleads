@@ -18,4 +18,5 @@ target campaign instead of relying on Terraform replacement.
 City targeting is `targeting_dimensions.locality` (for example
 `US|NY|New York`), not campaign `countries_or_regions`. Resolve IDs with
 the `appleads_geolocations` data source. Geo targeting only works on
-single-country campaigns.
+single-country campaigns. Changing campaign `countries_or_regions`
+clears ad-group geo targeting.

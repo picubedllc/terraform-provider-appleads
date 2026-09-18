@@ -27,9 +27,6 @@ func detectImmutableCampaignChanges(ctx context.Context, state, plan campaignMod
 	if !stringAttrEqual(state.AdChannelType, plan.AdChannelType) {
 		changes = append(changes, immutableCampaignFieldChange{Field: "ad_channel_type"})
 	}
-	if !listAttrSetEqual(ctx, state.CountriesOrRegions, plan.CountriesOrRegions) {
-		changes = append(changes, immutableCampaignFieldChange{Field: "countries_or_regions"})
-	}
 	if !listAttrSetEqual(ctx, state.SupplySources, plan.SupplySources) {
 		changes = append(changes, immutableCampaignFieldChange{Field: "supply_sources"})
 	}
@@ -80,7 +77,7 @@ func listAttrSetEqual(ctx context.Context, a, b types.List) bool {
 	return stringSetEqual(as, bs)
 }
 
-func campaignUpdateFromPlan(ctx context.Context, plan campaignModel) (*client.CampaignUpdate, diag.Diagnostics) {
+func campaignUpdateFromPlan(ctx context.Context, state, plan campaignModel) (*client.CampaignUpdate, diag.Diagnostics) {
 	var diags diag.Diagnostics
 	upd := &client.CampaignUpdate{}
 	if !plan.Name.IsNull() && !plan.Name.IsUnknown() {
@@ -100,6 +97,19 @@ func campaignUpdateFromPlan(ctx context.Context, plan campaignModel) (*client.Ca
 	upd.BudgetOrders = orders
 	if !plan.EndTime.IsNull() && !plan.EndTime.IsUnknown() {
 		upd.EndTime = plan.EndTime.ValueString()
+	}
+	// Only send countriesOrRegions when membership actually changes. Reorder is
+	// not a change (Apple may return a different order). Apple requires
+	// clearGeoTargetingOnCountryOrRegionChange when the set changes; sending
+	// that flag on unrelated updates would clear ad-group geo targeting.
+	if !listAttrSetEqual(ctx, state.CountriesOrRegions, plan.CountriesOrRegions) {
+		countries, d := stringList(ctx, plan.CountriesOrRegions)
+		diags.Append(d...)
+		if len(countries) == 0 {
+			diags.AddError("Invalid countries_or_regions", "at least one country or region is required")
+		}
+		upd.CountriesOrRegions = countries
+		upd.ClearGeoTargetingOnCountryOrRegionChange = true
 	}
 	return upd, diags
 }

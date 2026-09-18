@@ -144,17 +144,17 @@ resource "appleads_campaign" "immutable" {
 				),
 			},
 			{
-				Config: testAccProviderConfig(true) + fmt.Sprintf(`
+				Config: testAccProviderConfig(true) + `
 resource "appleads_campaign" "immutable" {
   name                 = "tf-acc-immutable"
-  adam_id              = "%s"
-  countries_or_regions = ["CA"]
+  adam_id              = "999999999"
+  countries_or_regions = ["US"]
   status               = "PAUSED"
   daily_budget_amount  = "1.00"
   daily_budget_currency = "USD"
 }
-`, adamID),
-				ExpectError: regexp.MustCompile(`Cannot change immutable campaign field "countries_or_regions"`),
+`,
+				ExpectError: regexp.MustCompile(`Cannot change immutable campaign field "adam_id"`),
 			},
 			{
 				// Prove original campaign identity was preserved (not archived/replaced).
@@ -189,8 +189,8 @@ resource "appleads_campaign" "immutable" {
 						if got.Deleted {
 							return fmt.Errorf("campaign %s was archived after immutable change attempt", originalID)
 						}
-						if len(got.CountriesOrRegions) != 1 || got.CountriesOrRegions[0] != "US" {
-							return fmt.Errorf("countries changed unexpectedly: %#v", got.CountriesOrRegions)
+						if strconv.FormatInt(got.AdamID, 10) != adamID {
+							return fmt.Errorf("adam_id changed unexpectedly: %d", got.AdamID)
 						}
 						return nil
 					},
