@@ -83,20 +83,20 @@ func TestValidateCampaignCombo_InvalidCrossCombos(t *testing.T) {
 		wantSub   string
 	}{
 		{
-			name:      "search-with-display-supply",
-			channel:   client.AdChannelTypeSearch,
-			supply:    []string{client.SupplySourceTodayTab},
-			billing:   client.BillingEventTaps,
-			bidding:   client.BiddingStrategyManualCPT,
-			wantSub:   "SEARCH campaigns require",
+			name:    "search-with-display-supply",
+			channel: client.AdChannelTypeSearch,
+			supply:  []string{client.SupplySourceTodayTab},
+			billing: client.BillingEventTaps,
+			bidding: client.BiddingStrategyManualCPT,
+			wantSub: "SEARCH campaigns require",
 		},
 		{
-			name:      "display-with-search-supply",
-			channel:   client.AdChannelTypeDisplay,
-			supply:    []string{client.SupplySourceSearchResults},
-			billing:   client.BillingEventTaps,
-			bidding:   client.BiddingStrategyManualCPT,
-			wantSub:   "DISPLAY campaigns require",
+			name:    "display-with-search-supply",
+			channel: client.AdChannelTypeDisplay,
+			supply:  []string{client.SupplySourceSearchResults},
+			billing: client.BillingEventTaps,
+			bidding: client.BiddingStrategyManualCPT,
+			wantSub: "DISPLAY campaigns require",
 		},
 		{
 			name:      "display-with-max-conversions",
@@ -298,6 +298,9 @@ func TestCampaignResource_SchemaDocumentsComboMatrix(t *testing.T) {
 		"MAX_CONVERSIONS",
 		"target_cpa_amount",
 		"creatives/ads",
+		"Maximize Conversions automated ad group",
+		"campaign_id/ad_group_id",
+		"default_bid_amount",
 	} {
 		if !strings.Contains(desc, want) {
 			t.Fatalf("schema description missing %q", want)

@@ -69,7 +69,12 @@ func (r *adGroupResource) Schema(ctx context.Context, req resource.SchemaRequest
 			"**Mutable:** `name`, `status`, `default_bid_amount`/`default_bid_currency`, `cpa_goal_amount`/`cpa_goal_currency`, `automated_keywords_opt_in` (Search Match), `start_time`, `end_time`, `targeting_dimensions`.\n\n" +
 			"**Computed:** `id`, `serving_status`, `display_status`, `modification_time`.\n\n" +
 			"City and other audience targeting is `targeting_dimensions` (Apple `targetingDimensions`). " +
-			"Geo targeting only works on single-country campaigns; look up locality IDs with `appleads_geolocations`.",
+			"Geo targeting only works on single-country campaigns; look up locality IDs with `appleads_geolocations`.\n\n" +
+			"## Maximize Conversions auto-created ad groups\n\n" +
+			"Maximize Conversions campaigns may receive an Apple-created Automated Ad Group outside Terraform state. " +
+			"Import that group as a normal `appleads_ad_group` using `campaign_id/ad_group_id` or bare `ad_group_id` — " +
+			"do not invent a separate resource type. Under Max Conversions, keyword and `default_bid_amount` behavior " +
+			"is driven by Apple's auto-bidder / campaign `target_cpa_amount`; see the campaign resource docs.",
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
 				Computed:            true,
