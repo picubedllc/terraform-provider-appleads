@@ -129,6 +129,85 @@ func TestGetCampaignReport(t *testing.T) {
 	}
 }
 
+func TestGetCampaignKeywordReport(t *testing.T) {
+	t.Parallel()
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost || r.URL.Path != "/reports/campaigns/10/keywords" {
+			t.Fatalf("unexpected %s %s", r.Method, r.URL.Path)
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"data": map[string]any{
+				"reportingDataResponse": map[string]any{
+					"row": []map[string]any{{
+						"metadata": map[string]any{
+							"keywordId":   99,
+							"keyword":     "party games",
+							"matchType":   "EXACT",
+							"adGroupId":   20,
+							"adGroupName": "Generic Search",
+						},
+						"total": map[string]any{"impressions": 8, "taps": 2},
+					}},
+				},
+			},
+		})
+	}))
+	t.Cleanup(srv.Close)
+
+	c, err := New(WithBaseURL(srv.URL))
+	if err != nil {
+		t.Fatal(err)
+	}
+	rows, err := c.GetCampaignKeywordReport(context.Background(), 10, DefaultReportingRequest("2026-09-01", "2026-09-14", "UTC"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rows) != 1 || rows[0].Metadata.Keyword != "party games" || rows[0].Metadata.AdGroupID != 20 {
+		t.Fatalf("rows = %#v", rows)
+	}
+}
+
+func TestGetAdReport(t *testing.T) {
+	t.Parallel()
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost || r.URL.Path != "/reports/campaigns/10/ads" {
+			t.Fatalf("unexpected %s %s", r.Method, r.URL.Path)
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"data": map[string]any{
+				"reportingDataResponse": map[string]any{
+					"row": []map[string]any{{
+						"metadata": map[string]any{
+							"adId":         55,
+							"adName":       "CPP US",
+							"adGroupId":    20,
+							"creativeId":   77,
+							"creativeType": "CUSTOM_PRODUCT_PAGE",
+							"language":     "en",
+						},
+						"total": map[string]any{"impressions": 15, "taps": 3},
+					}},
+				},
+			},
+		})
+	}))
+	t.Cleanup(srv.Close)
+
+	c, err := New(WithBaseURL(srv.URL))
+	if err != nil {
+		t.Fatal(err)
+	}
+	rows, err := c.GetAdReport(context.Background(), 10, DefaultReportingRequest("2026-09-01", "2026-09-14", "UTC"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rows) != 1 || rows[0].Metadata.AdName != "CPP US" || rows[0].Metadata.CreativeID != 77 {
+		t.Fatalf("rows = %#v", rows)
+	}
+}
+
 func TestGetAdGroupSearchTermReport(t *testing.T) {
 	t.Parallel()
 
