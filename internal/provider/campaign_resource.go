@@ -44,12 +44,13 @@ type campaignResource struct {
 //
 // Immutable — never use RequiresReplace; Update returns a diagnostic instead:
 //   - adam_id
-//   - countries_or_regions
 //   - supply_sources
 //   - ad_channel_type
 //
 // Mutable — in-place Update:
 //   - name, status, budget_amount, daily_budget_amount, budget_orders, end_time
+//   - countries_or_regions (membership changes; Apple requires
+//     clearGeoTargetingOnCountryOrRegionChange, which clears ad-group geo targeting)
 //
 // Computed:
 //   - id, serving_status, display_status, modification_time
@@ -147,6 +148,14 @@ func (r *campaignResource) Schema(ctx context.Context, req resource.SchemaReques
 				Optional:            true,
 				MarkdownDescription: "Campaign end time in ISO-8601 format (mutable).",
 			},
+			"countries_or_regions": schema.ListAttribute{
+				Required:            true,
+				ElementType:         types.StringType,
+				MarkdownDescription: "Country or region codes targeted by the campaign (mutable). Order is not significant; Apple may return a different order and the provider keeps the configured order when the set is unchanged. Membership changes (add or drop) are applied in place via PUT `/campaigns/{id}` with `clearGeoTargetingOnCountryOrRegionChange=true`, which clears ad-group geo targeting (`locality` / `admin_area` / `country`). At least one country is required. The promoted app must remain available in the remaining App Store territories.",
+				Validators: []validator.List{
+					listvalidator.SizeAtLeast(1),
+				},
+			},
 
 			// Immutable. Intentionally no RequiresReplace plan modifiers.
 			"adam_id": schema.StringAttribute{
@@ -154,14 +163,6 @@ func (r *campaignResource) Schema(ctx context.Context, req resource.SchemaReques
 				MarkdownDescription: "Adam ID of the promoted app (immutable). Changing this after create returns an error; create a new appleads_campaign instead.",
 				Validators: []validator.String{
 					stringvalidator.LengthAtLeast(1),
-				},
-			},
-			"countries_or_regions": schema.ListAttribute{
-				Required:            true,
-				ElementType:         types.StringType,
-				MarkdownDescription: "Country or region codes targeted by the campaign (immutable). Order is not significant; Apple may return a different order and the provider keeps the configured order when the set is unchanged. Changing membership after create returns an error; create a new appleads_campaign instead.",
-				Validators: []validator.List{
-					listvalidator.SizeAtLeast(1),
 				},
 			},
 			"supply_sources": schema.ListAttribute{
@@ -332,7 +333,7 @@ func (r *campaignResource) Update(ctx context.Context, req resource.UpdateReques
 		return
 	}
 
-	upd, diags := campaignUpdateFromPlan(ctx, plan)
+	upd, diags := campaignUpdateFromPlan(ctx, state, plan)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return

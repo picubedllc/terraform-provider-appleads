@@ -174,3 +174,97 @@ func TestCreateCampaign_MoneyRoundTripNoFloat(t *testing.T) {
 		t.Fatalf("amount = %q", out.DailyBudgetAmount.Amount)
 	}
 }
+
+func TestUpdateCampaign_CountriesOrRegionsSetsClearGeoFlag(t *testing.T) {
+	t.Parallel()
+
+	var raw map[string]any
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPut || r.URL.Path != "/campaigns/42" {
+			t.Fatalf("unexpected %s %s", r.Method, r.URL.Path)
+		}
+		if err := json.NewDecoder(r.Body).Decode(&raw); err != nil {
+			t.Fatal(err)
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"data": map[string]any{
+				"id":                 42,
+				"name":               "example-campaign",
+				"countriesOrRegions": []string{"US", "CA"},
+			},
+		})
+	}))
+	t.Cleanup(srv.Close)
+
+	c, err := New(WithBaseURL(srv.URL))
+	if err != nil {
+		t.Fatal(err)
+	}
+	dropped := []string{"US", "CA"}
+	out, err := c.UpdateCampaign(context.Background(), 42, &CampaignUpdate{
+		CountriesOrRegions:                       dropped,
+		ClearGeoTargetingOnCountryOrRegionChange: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if raw["clearGeoTargetingOnCountryOrRegionChange"] != true {
+		t.Fatalf("envelope flag = %#v", raw["clearGeoTargetingOnCountryOrRegionChange"])
+	}
+	campaign, ok := raw["campaign"].(map[string]any)
+	if !ok {
+		t.Fatalf("campaign = %#v", raw["campaign"])
+	}
+	if _, nested := campaign["clearGeoTargetingOnCountryOrRegionChange"]; nested {
+		t.Fatal("clearGeoTargetingOnCountryOrRegionChange must be on the envelope, not the campaign object")
+	}
+	got, ok := campaign["countriesOrRegions"].([]any)
+	if !ok {
+		t.Fatalf("countriesOrRegions = %#v", campaign["countriesOrRegions"])
+	}
+	if len(got) != len(dropped) {
+		t.Fatalf("countriesOrRegions = %#v", got)
+	}
+	for i, code := range dropped {
+		if got[i] != code {
+			t.Fatalf("countriesOrRegions[%d] = %#v, want %q", i, got[i], code)
+		}
+	}
+	if out.ID != 42 {
+		t.Fatalf("id = %d", out.ID)
+	}
+}
+
+func TestUpdateCampaign_OmitsClearGeoFlagWhenUnchanged(t *testing.T) {
+	t.Parallel()
+
+	var raw map[string]any
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if err := json.NewDecoder(r.Body).Decode(&raw); err != nil {
+			t.Fatal(err)
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"data": map[string]any{"id": 9, "name": "New"},
+		})
+	}))
+	t.Cleanup(srv.Close)
+
+	c, err := New(WithBaseURL(srv.URL))
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = c.UpdateCampaign(context.Background(), 9, &CampaignUpdate{Name: "New"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := raw["clearGeoTargetingOnCountryOrRegionChange"]; ok {
+		t.Fatalf("flag should be omitted when countries are unchanged, got %#v", raw)
+	}
+	campaign, ok := raw["campaign"].(map[string]any)
+	if !ok {
+		t.Fatalf("campaign = %#v", raw["campaign"])
+	}
+	if _, ok := campaign["countriesOrRegions"]; ok {
+		t.Fatalf("countriesOrRegions should be omitted, got %#v", campaign)
+	}
+}

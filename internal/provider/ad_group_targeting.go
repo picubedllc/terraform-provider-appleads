@@ -74,7 +74,7 @@ func targetingDimensionsAttribute() schema.SingleNestedAttribute {
 		Optional: true,
 		MarkdownDescription: "Audience targeting mapped to Apple Ads `targetingDimensions` (mutable).\n\n" +
 			"Geo targeting (`country`, `admin_area`, `locality`) only works on **single-country** campaigns. " +
-			"Campaign `countries_or_regions` stays at country grain (immutable after create); city grain is this ad-group object. " +
+			"Campaign `countries_or_regions` is country grain (mutable in place); city grain is this ad-group object. " +
 			"Look up IDs with the `appleads_geolocations` data source. Examples: country `US` (ISO alpha-2), " +
 			"admin area `US|NY`, locality `US|NY|New York`.\n\n" +
 			"Omitted nested dimensions are left unset on create. On update, Apple requires a full `targetingDimensions` object: " +

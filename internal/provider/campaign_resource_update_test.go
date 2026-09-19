@@ -20,23 +20,22 @@ func TestDetectImmutableCampaignChanges(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 
-	countriesA, _ := types.ListValueFrom(ctx, types.StringType, []string{"US"})
-	countriesB, _ := types.ListValueFrom(ctx, types.StringType, []string{"GB"})
+	countries, _ := types.ListValueFrom(ctx, types.StringType, []string{"US"})
 	supply, _ := types.ListValueFrom(ctx, types.StringType, []string{"APPSTORE_SEARCH_RESULTS"})
 
 	state := campaignModel{
 		ID:                 types.StringValue("12345"),
 		AdamID:             types.StringValue("1"),
 		AdChannelType:      types.StringValue("SEARCH"),
-		CountriesOrRegions: countriesA,
+		CountriesOrRegions: countries,
 		SupplySources:      supply,
 	}
 	plan := state
-	plan.CountriesOrRegions = countriesB
+	plan.AdamID = types.StringValue("2")
 	plan.Name = types.StringValue("also mutable")
 
 	changes := detectImmutableCampaignChanges(ctx, state, plan)
-	if len(changes) != 1 || changes[0].Field != "countries_or_regions" {
+	if len(changes) != 1 || changes[0].Field != "adam_id" {
 		t.Fatalf("changes = %#v", changes)
 	}
 	diags := immutableCampaignChangeDiagnostics("12345", changes)
@@ -44,7 +43,7 @@ func TestDetectImmutableCampaignChanges(t *testing.T) {
 		t.Fatal("expected diagnostics")
 	}
 	detail := diags[0].Detail()
-	if !strings.Contains(detail, "countries_or_regions") || !strings.Contains(detail, "12345") {
+	if !strings.Contains(detail, "adam_id") || !strings.Contains(detail, "12345") {
 		t.Fatalf("detail = %s", detail)
 	}
 	if !strings.Contains(detail, "Create a new appleads_campaign") {
@@ -121,6 +120,30 @@ func TestCampaignUpdate_MutableSucceeds(t *testing.T) {
 	}
 }
 
+func TestDetectImmutableCampaignChanges_CountryMembershipIsMutable(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+
+	before, _ := types.ListValueFrom(ctx, types.StringType, []string{"US", "CA", "GB"})
+	after, _ := types.ListValueFrom(ctx, types.StringType, []string{"US", "CA"})
+	supply, _ := types.ListValueFrom(ctx, types.StringType, []string{"APPSTORE_SEARCH_RESULTS"})
+
+	state := campaignModel{
+		ID:                 types.StringValue("12345"),
+		AdamID:             types.StringValue("1"),
+		AdChannelType:      types.StringValue("SEARCH"),
+		CountriesOrRegions: before,
+		SupplySources:      supply,
+	}
+	plan := state
+	plan.CountriesOrRegions = after
+
+	changes := detectImmutableCampaignChanges(ctx, state, plan)
+	if len(changes) != 0 {
+		t.Fatalf("countries_or_regions membership is mutable, got %#v", changes)
+	}
+}
+
 func TestCampaignUpdate_ImmutableBlocksWithoutAPICall(t *testing.T) {
 	t.Parallel()
 	called := false
@@ -131,28 +154,103 @@ func TestCampaignUpdate_ImmutableBlocksWithoutAPICall(t *testing.T) {
 	t.Cleanup(srv.Close)
 
 	ctx := context.Background()
-	countriesA, _ := types.ListValueFrom(ctx, types.StringType, []string{"US"})
-	countriesB, _ := types.ListValueFrom(ctx, types.StringType, []string{"CA"})
+	countries, _ := types.ListValueFrom(ctx, types.StringType, []string{"US"})
 	state := campaignModel{
 		ID:                 types.StringValue("99"),
 		AdamID:             types.StringValue("1"),
-		CountriesOrRegions: countriesA,
+		CountriesOrRegions: countries,
 		SupplySources:      types.ListNull(types.StringType),
 		BudgetOrders:       types.ListNull(types.StringType),
 	}
 	plan := state
-	plan.CountriesOrRegions = countriesB
+	plan.AdamID = types.StringValue("2")
 	plan.Name = types.StringValue("mutable too")
 
 	changes := detectImmutableCampaignChanges(ctx, state, plan)
 	if len(changes) == 0 {
 		t.Fatal("expected immutable change")
 	}
-	// Simulate Update early-return: no client call.
 	_ = srv
 	apiClient, _ := client.New(client.WithBaseURL(srv.URL))
 	_ = apiClient
 	if called {
 		t.Fatal("API should not be called when immutable fields change")
+	}
+}
+
+func TestCampaignUpdateFromPlan_DropCountrySendsClearGeoFlag(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+
+	before, diags := types.ListValueFrom(ctx, types.StringType, []string{"US", "CA", "GB"})
+	if diags.HasError() {
+		t.Fatal(diags)
+	}
+	after, diags := types.ListValueFrom(ctx, types.StringType, []string{"US", "CA"})
+	if diags.HasError() {
+		t.Fatal(diags)
+	}
+
+	state := campaignModel{
+		ID:                 types.StringValue("42"),
+		Name:               types.StringValue("example-campaign"),
+		AdamID:             types.StringValue("1"),
+		Status:             types.StringValue("ENABLED"),
+		CountriesOrRegions: before,
+		SupplySources:      types.ListNull(types.StringType),
+		BudgetOrders:       types.ListNull(types.StringType),
+	}
+	plan := state
+	plan.CountriesOrRegions = after
+
+	upd, d := campaignUpdateFromPlan(ctx, state, plan)
+	if d.HasError() {
+		t.Fatalf("%v", d)
+	}
+	if !upd.ClearGeoTargetingOnCountryOrRegionChange {
+		t.Fatal("expected clearGeoTargetingOnCountryOrRegionChange")
+	}
+	want := []string{"US", "CA"}
+	if len(upd.CountriesOrRegions) != len(want) {
+		t.Fatalf("countries = %#v", upd.CountriesOrRegions)
+	}
+	for i := range want {
+		if upd.CountriesOrRegions[i] != want[i] {
+			t.Fatalf("countries[%d] = %q, want %q", i, upd.CountriesOrRegions[i], want[i])
+		}
+	}
+}
+
+func TestCampaignUpdateFromPlan_ReorderOmitsCountries(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+
+	configured, diags := types.ListValueFrom(ctx, types.StringType, []string{"US", "CA", "GB"})
+	if diags.HasError() {
+		t.Fatal(diags)
+	}
+	reordered, diags := types.ListValueFrom(ctx, types.StringType, []string{"GB", "US", "CA"})
+	if diags.HasError() {
+		t.Fatal(diags)
+	}
+
+	state := campaignModel{
+		Name:               types.StringValue("example-campaign"),
+		Status:             types.StringValue("ENABLED"),
+		CountriesOrRegions: configured,
+		BudgetOrders:       types.ListNull(types.StringType),
+	}
+	plan := state
+	plan.CountriesOrRegions = reordered
+
+	upd, d := campaignUpdateFromPlan(ctx, state, plan)
+	if d.HasError() {
+		t.Fatalf("%v", d)
+	}
+	if upd.ClearGeoTargetingOnCountryOrRegionChange {
+		t.Fatal("reorder must not set clearGeoTargetingOnCountryOrRegionChange")
+	}
+	if upd.CountriesOrRegions != nil {
+		t.Fatalf("reorder must omit countriesOrRegions, got %#v", upd.CountriesOrRegions)
 	}
 }

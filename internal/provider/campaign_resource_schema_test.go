@@ -26,7 +26,7 @@ func TestCampaignResource_SchemaMutableImmutableClassification(t *testing.T) {
 		t.Fatalf("schema diagnostics: %v", resp.Diagnostics)
 	}
 
-	immutable := []string{"adam_id", "countries_or_regions", "supply_sources", "ad_channel_type"}
+	immutable := []string{"adam_id", "supply_sources", "ad_channel_type"}
 	for _, name := range immutable {
 		attr, ok := resp.Schema.Attributes[name]
 		if !ok {
@@ -38,7 +38,7 @@ func TestCampaignResource_SchemaMutableImmutableClassification(t *testing.T) {
 		}
 	}
 
-	mutable := []string{"name", "status", "budget_amount", "daily_budget_amount", "budget_orders", "end_time"}
+	mutable := []string{"name", "status", "budget_amount", "daily_budget_amount", "budget_orders", "end_time", "countries_or_regions"}
 	for _, name := range mutable {
 		attr, ok := resp.Schema.Attributes[name]
 		if !ok {

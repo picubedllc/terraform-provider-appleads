@@ -18,7 +18,7 @@ Manages an Apple Ads campaign. Immutable fields never trigger automatic replacem
 ### Required
 
 - `adam_id` (String) Adam ID of the promoted app (immutable). Changing this after create returns an error; create a new appleads_campaign instead.
-- `countries_or_regions` (List of String) Country or region codes targeted by the campaign (immutable). Order is not significant; Apple may return a different order and the provider keeps the configured order when the set is unchanged. Changing membership after create returns an error; create a new appleads_campaign instead.
+- `countries_or_regions` (List of String) Country or region codes targeted by the campaign (mutable). Order is not significant; Apple may return a different order and the provider keeps the configured order when the set is unchanged. Membership changes (add or drop) are applied in place via PUT `/campaigns/{id}` with `clearGeoTargetingOnCountryOrRegionChange=true`, which clears ad-group geo targeting (`locality` / `admin_area` / `country`). At least one country is required. The promoted app must remain available in the remaining App Store territories.
 - `name` (String) Campaign name (mutable).
 
 ### Optional

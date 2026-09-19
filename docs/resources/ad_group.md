@@ -51,7 +51,8 @@ resource "appleads_ad_group" "today_tab" {
 }
 
 # City targeting is ad-group targeting_dimensions.locality (Apple Ads
-# targetingDimensions). Campaign countries_or_regions stays US (immutable).
+# targetingDimensions). Campaign countries_or_regions is country grain
+# (mutable in place). Geo targeting only works on single-country campaigns.
 # Look up IDs with data.appleads_geolocations; NYC locality is US|NY|New York.
 
 resource "appleads_ad_group" "nyc_brand" {
@@ -92,7 +93,7 @@ resource "appleads_ad_group" "nyc_brand" {
 - `status` (String) ENABLED or PAUSED (mutable).
 - `targeting_dimensions` (Attributes) Audience targeting mapped to Apple Ads `targetingDimensions` (mutable).
 
-Geo targeting (`country`, `admin_area`, `locality`) only works on **single-country** campaigns. Campaign `countries_or_regions` stays at country grain (immutable after create); city grain is this ad-group object. Look up IDs with the `appleads_geolocations` data source. Examples: country `US` (ISO alpha-2), admin area `US|NY`, locality `US|NY|New York`.
+Geo targeting (`country`, `admin_area`, `locality`) only works on **single-country** campaigns. Campaign `countries_or_regions` is country grain (mutable in place); city grain is this ad-group object. Look up IDs with the `appleads_geolocations` data source. Examples: country `US` (ISO alpha-2), admin area `US|NY`, locality `US|NY|New York`.
 
 Omitted nested dimensions are left unset on create. On update, Apple requires a full `targetingDimensions` object: this provider sends JSON `null` for omitted nested dimensions so they clear. Removing `targeting_dimensions` entirely after it was set sends `targetingDimensions: null`. Apple may still return default `deviceClass` for the promoted app; unmanaged nested dimensions are not copied into state. (see [below for nested schema](#nestedatt--targeting_dimensions))
 
