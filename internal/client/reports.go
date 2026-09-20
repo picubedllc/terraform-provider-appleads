@@ -103,6 +103,19 @@ type ReportingSearchTermMetadata struct {
 	AdGroupName    string `json:"adGroupName"`
 }
 
+// ReportingAdMetadata is ad report row metadata.
+type ReportingAdMetadata struct {
+	AdID          int64  `json:"adId"`
+	AdName        string `json:"adName"`
+	AdGroupID     int64  `json:"adGroupId"`
+	CampaignID    int64  `json:"campaignId,omitempty"`
+	CreativeID    int64  `json:"creativeId,omitempty"`
+	CreativeType  string `json:"creativeType,omitempty"`
+	Language      string `json:"language,omitempty"`
+	DisplayStatus string `json:"displayStatus,omitempty"`
+	Deleted       bool   `json:"deleted"`
+}
+
 type reportingResponseBody[M any] struct {
 	ReportingDataResponse struct {
 		Row []ReportingRow[M] `json:"row"`
@@ -114,7 +127,7 @@ type reportingResponseBody[M any] struct {
 //
 // Apple requires selector.orderBy on reporting endpoints
 // (REQUIRED_INPUT_ORDER_BY_MISSING). localSpend is valid on campaign, ad group,
-// keyword, and search-term reports (Apple's keyword-within-ad-group example).
+// keyword, ad, and search-term reports (Apple's keyword-within-ad-group example).
 func DefaultReportingRequest(startTime, endTime, timeZone string) *ReportingRequest {
 	if timeZone == "" {
 		timeZone = "UTC"
@@ -164,6 +177,20 @@ func (c *Client) GetAdGroupReport(ctx context.Context, campaignID int64, req *Re
 func (c *Client) GetAdGroupKeywordReport(ctx context.Context, campaignID, adGroupID int64, req *ReportingRequest) ([]ReportingRow[ReportingKeywordMetadata], error) {
 	path := fmt.Sprintf("reports/campaigns/%d/adgroups/%d/keywords", campaignID, adGroupID)
 	return getReport[ReportingKeywordMetadata](ctx, c, path, req)
+}
+
+// GetCampaignKeywordReport fetches targeting-keyword reports for a campaign
+// (POST /reports/campaigns/{campaignId}/keywords).
+func (c *Client) GetCampaignKeywordReport(ctx context.Context, campaignID int64, req *ReportingRequest) ([]ReportingRow[ReportingKeywordMetadata], error) {
+	path := fmt.Sprintf("reports/campaigns/%d/keywords", campaignID)
+	return getReport[ReportingKeywordMetadata](ctx, c, path, req)
+}
+
+// GetAdReport fetches ad-level reports within a campaign
+// (POST /reports/campaigns/{campaignId}/ads).
+func (c *Client) GetAdReport(ctx context.Context, campaignID int64, req *ReportingRequest) ([]ReportingRow[ReportingAdMetadata], error) {
+	path := fmt.Sprintf("reports/campaigns/%d/ads", campaignID)
+	return getReport[ReportingAdMetadata](ctx, c, path, req)
 }
 
 // GetCampaignSearchTermReport fetches search-term reports for a campaign
