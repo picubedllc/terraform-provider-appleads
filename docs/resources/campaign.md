@@ -23,13 +23,15 @@ Manages an Apple Ads campaign. Immutable fields never trigger automatic replacem
 
 ### Optional
 
-- `ad_channel_type` (String) Ad channel type such as `SEARCH` (immutable).
+- `ad_channel_type` (String) Ad channel type such as `SEARCH` or `DISPLAY` (immutable). Defaults to `SEARCH` when omitted.
+- `billing_event` (String) Billing event such as `TAPS` (immutable). Defaults to `TAPS` when omitted.
 - `budget_amount` (String) Lifetime campaign budget amount as a decimal string (mutable). Never use floating point.
 - `budget_currency` (String) Currency code for budget_amount (e.g. USD).
 - `budget_orders` (List of String) Budget order identifiers associated with the campaign (mutable).
 - `daily_budget_amount` (String) Daily budget amount as a decimal string (mutable).
 - `daily_budget_currency` (String) Currency code for daily_budget_amount (e.g. USD).
 - `end_time` (String) Campaign end time in ISO-8601 format (mutable).
+- `start_time` (String) Campaign start time in ISO-8601 format. Use millisecond precision on create, e.g. `2026-01-01T00:00:00.000`. When omitted, Apple assigns the start time.
 - `status` (String) User-set campaign status: `ENABLED` or `PAUSED` (mutable).
 - `supply_sources` (List of String) Supply sources such as `APPSTORE_SEARCH_RESULTS` (immutable). Order is not significant; Apple may return a different order and the provider keeps the configured order when the set is unchanged.
 
@@ -38,4 +40,5 @@ Manages an Apple Ads campaign. Immutable fields never trigger automatic replacem
 - `display_status` (String) Display status reported by Apple Ads.
 - `id` (String) Campaign identifier assigned by Apple Ads.
 - `modification_time` (String) Last modification timestamp from Apple Ads.
+- `payment_model` (String) Payment model inherited from the organization (e.g. `PAYG`). Read-only; not writable.
 - `serving_status` (String) Effective serving status reported by Apple Ads.

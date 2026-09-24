@@ -26,7 +26,7 @@ func TestCampaignResource_SchemaMutableImmutableClassification(t *testing.T) {
 		t.Fatalf("schema diagnostics: %v", resp.Diagnostics)
 	}
 
-	immutable := []string{"adam_id", "countries_or_regions", "supply_sources", "ad_channel_type"}
+	immutable := []string{"adam_id", "countries_or_regions", "supply_sources", "ad_channel_type", "billing_event"}
 	for _, name := range immutable {
 		attr, ok := resp.Schema.Attributes[name]
 		if !ok {
@@ -50,7 +50,37 @@ func TestCampaignResource_SchemaMutableImmutableClassification(t *testing.T) {
 		}
 	}
 
-	for _, name := range []string{"id", "serving_status", "display_status", "modification_time"} {
+	startTime, ok := resp.Schema.Attributes["start_time"]
+	if !ok {
+		t.Fatal("missing start_time attribute")
+	}
+	if !startTime.IsOptional() || !startTime.IsComputed() {
+		t.Fatal("start_time should be Optional/Computed")
+	}
+	if startTime.IsRequired() {
+		t.Fatal("start_time must not be required")
+	}
+
+	billingEvent, ok := resp.Schema.Attributes["billing_event"]
+	if !ok {
+		t.Fatal("missing billing_event attribute")
+	}
+	if !billingEvent.IsOptional() || !billingEvent.IsComputed() {
+		t.Fatal("billing_event should be Optional/Computed")
+	}
+
+	paymentModel, ok := resp.Schema.Attributes["payment_model"]
+	if !ok {
+		t.Fatal("missing payment_model attribute")
+	}
+	if !paymentModel.IsComputed() || paymentModel.IsOptional() || paymentModel.IsRequired() {
+		t.Fatal("payment_model must be Computed only (not writable)")
+	}
+	if strings.Contains(strings.ToLower(paymentModel.GetMarkdownDescription()), "mutable") {
+		t.Fatal("payment_model must not be documented as mutable")
+	}
+
+	for _, name := range []string{"id", "serving_status", "display_status", "modification_time", "payment_model"} {
 		if _, ok := resp.Schema.Attributes[name]; !ok {
 			t.Fatalf("missing computed attribute %q", name)
 		}
