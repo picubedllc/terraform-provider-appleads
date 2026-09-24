@@ -52,7 +52,6 @@ func TestValidateCampaignCombo_ValidDisplayCombos(t *testing.T) {
 		client.SupplySourceSearchTab,
 		client.SupplySourceProductPagesBrowse,
 	} {
-		supply := supply
 		t.Run(supply, func(t *testing.T) {
 			t.Parallel()
 			diags := validateCampaignCombo(
@@ -122,7 +121,6 @@ func TestValidateCampaignCombo_InvalidCrossCombos(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			diags := validateCampaignCombo(tc.channel, tc.supply, tc.billing, tc.bidding)
@@ -156,7 +154,10 @@ func TestCampaignResource_ValidateConfig_ValidAndInvalid(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
-	r := NewCampaignResource().(*campaignResource)
+	r, ok := NewCampaignResource().(*campaignResource)
+	if !ok {
+		t.Fatalf("expected *campaignResource, got %T", NewCampaignResource())
+	}
 
 	countries, diags := types.ListValueFrom(ctx, types.StringType, []string{"US"})
 	if diags.HasError() {
@@ -228,7 +229,6 @@ func TestCampaignResource_ValidateConfig_ValidAndInvalid(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			cfg := campaignConfigFromModel(t, ctx, r, tc.model)
