@@ -14,6 +14,7 @@ FEATURES:
 * Add `appleads_geolocations` data source for Search for Geolocations (`GET /search/geo`) so locality IDs can be resolved instead of hardcoding blindly.
 * Add `appleads_keyword_bid_recommendations` data source to read Apple's suggested CPT (`insights.bidRecommendation`) from keyword reports. Observational only: do not copy `suggested_bid_amount` into `appleads_keyword.bid_amount`.
 * Add read-only `appleads_campaign_report`, `appleads_ad_group_report`, and `appleads_keyword_report` data sources for impressions, taps, TTR, spend, average CPT, installs, conversion rate, and CPA.
+* Add `appleads_search_term_report` data source for campaign- or ad-group-scoped search-term performance. Defaults `time_zone` to `ORTZ` (required by Apple). Observational only.
 
 BUG FIXES:
 
