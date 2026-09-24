@@ -93,8 +93,14 @@ func TestBudgetOrderCreateFromPlan_AndRoundTrip(t *testing.T) {
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 			t.Fatal(err)
 		}
-		bo := body["bo"].(map[string]any)
-		budget := bo["budget"].(map[string]any)
+		bo, ok := body["bo"].(map[string]any)
+		if !ok {
+			t.Fatalf("bo = %#v", body["bo"])
+		}
+		budget, ok := bo["budget"].(map[string]any)
+		if !ok {
+			t.Fatalf("budget = %#v", bo["budget"])
+		}
 		if budget["amount"] != "150.25" {
 			t.Fatalf("amount = %#v", budget["amount"])
 		}

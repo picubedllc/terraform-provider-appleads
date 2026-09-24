@@ -24,7 +24,11 @@ func TestCreateBudgetOrder_Success(t *testing.T) {
 			t.Fatal(err)
 		}
 		orgIDs, ok := body["orgIds"].([]any)
-		if !ok || len(orgIDs) != 1 || orgIDs[0].(float64) != 40669820 {
+		orgID, orgIDOK := float64(0), false
+		if ok && len(orgIDs) == 1 {
+			orgID, orgIDOK = orgIDs[0].(float64)
+		}
+		if !ok || !orgIDOK || orgID != 40669820 {
 			t.Fatalf("orgIds = %#v", body["orgIds"])
 		}
 		bo, ok := body["bo"].(map[string]any)
@@ -80,8 +84,14 @@ func TestCreateBudgetOrder_MoneyNoFloat(t *testing.T) {
 		if err := json.NewDecoder(r.Body).Decode(&raw); err != nil {
 			t.Fatal(err)
 		}
-		bo := raw["bo"].(map[string]any)
-		budget := bo["budget"].(map[string]any)
+		bo, ok := raw["bo"].(map[string]any)
+		if !ok {
+			t.Fatalf("bo = %#v", raw["bo"])
+		}
+		budget, ok := bo["budget"].(map[string]any)
+		if !ok {
+			t.Fatalf("budget = %#v", bo["budget"])
+		}
 		if _, isFloat := budget["amount"].(float64); isFloat {
 			t.Fatalf("amount encoded as float: %#v", budget["amount"])
 		}
@@ -297,8 +307,14 @@ func TestUpdateBudgetOrder_Success(t *testing.T) {
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 			t.Fatal(err)
 		}
-		bo := body["bo"].(map[string]any)
-		budget := bo["budget"].(map[string]any)
+		bo, ok := body["bo"].(map[string]any)
+		if !ok {
+			t.Fatalf("bo = %#v", body["bo"])
+		}
+		budget, ok := bo["budget"].(map[string]any)
+		if !ok {
+			t.Fatalf("budget = %#v", bo["budget"])
+		}
 		if bo["name"] != "updated" || budget["amount"] != "400.50" {
 			t.Fatalf("body = %#v", body)
 		}
