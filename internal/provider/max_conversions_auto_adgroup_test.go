@@ -100,7 +100,6 @@ func TestMaxConversionsAutoAdGroup_ListThenImportFormats(t *testing.T) {
 	}
 
 	for _, importID := range []string{compoundID, bareID} {
-		importID := importID
 		t.Run("import_"+strings.ReplaceAll(importID, "/", "_"), func(t *testing.T) {
 			t.Parallel()
 
