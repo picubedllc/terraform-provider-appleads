@@ -10,6 +10,7 @@ BUG FIXES:
 
 FEATURES:
 
+* Add `appleads_budget_order` resource for Apple Ads `/budgetorders` (create, read, update, import). Campaigns can reference managed order IDs via `budget_orders`. Destroy removes Terraform state only — API v5 has no delete endpoint.
 * Add optional `targeting_dimensions` on `appleads_ad_group` mapped to Apple Ads `targetingDimensions`, including geo (`locality`, `admin_area`, `country`) plus age, gender, `device_class`, `daypart`, and `app_downloaders`. City targeting uses locality IDs such as `US|NY|New York` (single-country campaigns only).
 * Add `appleads_geolocations` data source for Search for Geolocations (`GET /search/geo`) so locality IDs can be resolved instead of hardcoding blindly.
 * Add `appleads_keyword_bid_recommendations` data source to read Apple's suggested CPT (`insights.bidRecommendation`) from keyword reports. Observational only: do not copy `suggested_bid_amount` into `appleads_keyword.bid_amount`.
