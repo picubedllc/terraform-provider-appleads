@@ -17,6 +17,24 @@ import (
 	"github.com/picubedllc/terraform-provider-appleads/internal/client"
 )
 
+func mustProductPageLocalesDataSource(t *testing.T) *productPageLocalesDataSource {
+	t.Helper()
+	ds, ok := NewProductPageLocalesDataSource().(*productPageLocalesDataSource)
+	if !ok {
+		t.Fatalf("expected *productPageLocalesDataSource, got %T", NewProductPageLocalesDataSource())
+	}
+	return ds
+}
+
+func mustCountriesOrRegionsDataSource(t *testing.T) *countriesOrRegionsDataSource {
+	t.Helper()
+	ds, ok := NewCountriesOrRegionsDataSource().(*countriesOrRegionsDataSource)
+	if !ok {
+		t.Fatalf("expected *countriesOrRegionsDataSource, got %T", NewCountriesOrRegionsDataSource())
+	}
+	return ds
+}
+
 func TestProductPageLocalesDataSource_UnitRead(t *testing.T) {
 	t.Parallel()
 
@@ -47,7 +65,7 @@ func TestProductPageLocalesDataSource_UnitRead(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ds := NewProductPageLocalesDataSource().(*productPageLocalesDataSource)
+	ds := mustProductPageLocalesDataSource(t)
 	ds.client = apiClient
 
 	ctx := context.Background()
@@ -123,7 +141,7 @@ func TestProductPageLocalesDataSource_UnitEmpty(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ds := NewProductPageLocalesDataSource().(*productPageLocalesDataSource)
+	ds := mustProductPageLocalesDataSource(t)
 	ds.client = apiClient
 
 	ctx := context.Background()
@@ -215,7 +233,7 @@ func TestCountriesOrRegionsDataSource_UnitRead(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ds := NewCountriesOrRegionsDataSource().(*countriesOrRegionsDataSource)
+	ds := mustCountriesOrRegionsDataSource(t)
 	ds.client = apiClient
 
 	ctx := context.Background()
@@ -284,7 +302,7 @@ func TestCountriesOrRegionsDataSource_UnitEmpty(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ds := NewCountriesOrRegionsDataSource().(*countriesOrRegionsDataSource)
+	ds := mustCountriesOrRegionsDataSource(t)
 	ds.client = apiClient
 
 	ctx := context.Background()
