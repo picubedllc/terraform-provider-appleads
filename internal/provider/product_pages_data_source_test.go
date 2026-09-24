@@ -18,6 +18,24 @@ import (
 	"github.com/picubedllc/terraform-provider-appleads/internal/client"
 )
 
+func mustProductPagesDataSource(t *testing.T) *productPagesDataSource {
+	t.Helper()
+	ds, ok := NewProductPagesDataSource().(*productPagesDataSource)
+	if !ok {
+		t.Fatalf("expected *productPagesDataSource, got %T", NewProductPagesDataSource())
+	}
+	return ds
+}
+
+func mustProductPageDataSource(t *testing.T) *productPageDataSource {
+	t.Helper()
+	ds, ok := NewProductPageDataSource().(*productPageDataSource)
+	if !ok {
+		t.Fatalf("expected *productPageDataSource, got %T", NewProductPageDataSource())
+	}
+	return ds
+}
+
 func productPagesObjType() tftypes.Object {
 	pageType := tftypes.Object{
 		AttributeTypes: map[string]tftypes.Type{
@@ -61,10 +79,7 @@ func TestProductPagesDataSource_UnitReadEmpty(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ds, ok := NewProductPagesDataSource().(*productPagesDataSource)
-	if !ok {
-		t.Fatalf("type %T", NewProductPagesDataSource())
-	}
+	ds := mustProductPagesDataSource(t)
 	ds.client = apiClient
 
 	ctx := context.Background()
@@ -129,7 +144,7 @@ func TestProductPagesDataSource_UnitReadWithFilters(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ds := NewProductPagesDataSource().(*productPagesDataSource)
+	ds := mustProductPagesDataSource(t)
 	ds.client = apiClient
 
 	ctx := context.Background()
@@ -166,7 +181,7 @@ func TestProductPagesDataSource_UnitReadWithFilters(t *testing.T) {
 func TestProductPagesDataSource_UnitInvalidAdamID(t *testing.T) {
 	t.Parallel()
 
-	ds := NewProductPagesDataSource().(*productPagesDataSource)
+	ds := mustProductPagesDataSource(t)
 	ds.client = &client.Client{}
 
 	ctx := context.Background()
@@ -218,7 +233,7 @@ func TestProductPageDataSource_UnitRead(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ds := NewProductPageDataSource().(*productPageDataSource)
+	ds := mustProductPageDataSource(t)
 	ds.client = apiClient
 
 	ctx := context.Background()
@@ -283,7 +298,7 @@ func TestProductPageDataSource_UnitNotFound(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ds := NewProductPageDataSource().(*productPageDataSource)
+	ds := mustProductPageDataSource(t)
 	ds.client = apiClient
 
 	ctx := context.Background()
@@ -326,7 +341,7 @@ func TestProductPageDataSource_UnitNotFound(t *testing.T) {
 func TestProductPageDataSource_UnitInvalidAdamID(t *testing.T) {
 	t.Parallel()
 
-	ds := NewProductPageDataSource().(*productPageDataSource)
+	ds := mustProductPageDataSource(t)
 	ds.client = &client.Client{}
 
 	ctx := context.Background()
