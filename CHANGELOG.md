@@ -10,6 +10,7 @@ BUG FIXES:
 
 FEATURES:
 
+* Add `appleads_creative` and `appleads_ad` resources for Apple Ads `/creatives` and campaign ad-group `/ads` endpoints. Creatives wire to product page IDs from the product-page data sources; Display / Today Tab docs note localization requirements. Creative destroy is state-only (API v5 has no creative delete). Immutable fields error instead of `RequiresReplace`.
 * Add read-only `appleads_product_pages`, `appleads_product_page`, `appleads_product_page_locales`, and `appleads_countries_or_regions` data sources for App Store Connect product-page and country/region lookups via Apple Ads API v5. Product pages are owned in App Store Connect; the Ads API does not create or mutate them.
 * Add optional `targeting_dimensions` on `appleads_ad_group` mapped to Apple Ads `targetingDimensions`, including geo (`locality`, `admin_area`, `country`) plus age, gender, `device_class`, `daypart`, and `app_downloaders`. City targeting uses locality IDs such as `US|NY|New York` (single-country campaigns only).
 * Add `appleads_geolocations` data source for Search for Geolocations (`GET /search/geo`) so locality IDs can be resolved instead of hardcoding blindly.
