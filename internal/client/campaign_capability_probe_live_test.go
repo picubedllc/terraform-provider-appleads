@@ -78,15 +78,19 @@ func TestLiveCampaignBudgetAmountUpdateProbe(t *testing.T) {
 	t.Logf("created campaign id=%d budgetAmount=%v daily=%v paymentModel=%q",
 		created.ID, moneyAmt(created.BudgetAmount), moneyAmt(created.DailyBudgetAmount), created.PaymentModel)
 
-	updated, err := c.UpdateCampaign(ctx, created.ID, &client.CampaignUpdate{
-		BudgetAmount: &client.Money{Amount: "150.00", Currency: "USD"},
-	})
+	// Raw probe: BudgetAmount is not on CampaignUpdate (create-only). Use DoJSON.
+	var env client.Response[client.Campaign]
+	err = c.DoJSON(ctx, "PUT", fmt.Sprintf("campaigns/%d", created.ID), map[string]any{
+		"campaign": map[string]any{
+			"budgetAmount": map[string]string{"amount": "150.00", "currency": "USD"},
+		},
+	}, &env)
 	if err != nil {
 		t.Logf("FINDING budget_amount update: REJECTED — treat as create-only in Terraform. err=%v", err)
 		return
 	}
 	t.Logf("FINDING budget_amount update: ACCEPTED — amount now %v (unexpected vs Apple create-only docs)",
-		moneyAmt(updated.BudgetAmount))
+		moneyAmt(env.Data.BudgetAmount))
 }
 
 // TestLiveCampaignMaxConversionsProbe creates a Maximize Conversions campaign

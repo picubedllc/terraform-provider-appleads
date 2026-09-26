@@ -88,6 +88,96 @@ func TestDetectImmutableCampaignChanges_BillingEvent(t *testing.T) {
 	}
 }
 
+func TestDetectImmutableCampaignChanges_BudgetAmount(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+
+	countries, _ := types.ListValueFrom(ctx, types.StringType, []string{"US"})
+	supply, _ := types.ListValueFrom(ctx, types.StringType, []string{"APPSTORE_SEARCH_RESULTS"})
+
+	state := campaignModel{
+		ID:                  types.StringValue("77"),
+		AdamID:              types.StringValue("1"),
+		AdChannelType:       types.StringValue("SEARCH"),
+		BillingEvent:        types.StringValue("TAPS"),
+		CountriesOrRegions:  countries,
+		SupplySources:       supply,
+		BudgetAmount:        types.StringValue("100.00"),
+		BudgetCurrency:      types.StringValue("USD"),
+		DailyBudgetAmount:   types.StringValue("10.00"),
+		DailyBudgetCurrency: types.StringValue("USD"),
+	}
+	plan := state
+	plan.BudgetAmount = types.StringValue("150.00")
+	plan.DailyBudgetAmount = types.StringValue("12.00") // mutable change must not mask create-only error
+
+	changes := detectImmutableCampaignChanges(ctx, state, plan)
+	if len(changes) != 1 || changes[0].Field != "budget_amount" {
+		t.Fatalf("changes = %#v", changes)
+	}
+	diags := immutableCampaignChangeDiagnostics("77", changes)
+	if !diags.HasError() {
+		t.Fatal("expected diagnostics")
+	}
+	if !strings.Contains(diags[0].Summary(), "budget_amount") {
+		t.Fatalf("summary = %s", diags[0].Summary())
+	}
+	if strings.Contains(strings.ToLower(diags[0].Detail()), "requiresreplace") {
+		t.Fatal("diagnostic must not mention RequiresReplace")
+	}
+}
+
+func TestDetectImmutableCampaignChanges_BudgetCurrency(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+
+	countries, _ := types.ListValueFrom(ctx, types.StringType, []string{"US"})
+	supply, _ := types.ListValueFrom(ctx, types.StringType, []string{"APPSTORE_SEARCH_RESULTS"})
+
+	state := campaignModel{
+		ID:                 types.StringValue("78"),
+		AdamID:             types.StringValue("1"),
+		CountriesOrRegions: countries,
+		SupplySources:      supply,
+		BudgetAmount:       types.StringValue("100.00"),
+		BudgetCurrency:     types.StringValue("USD"),
+	}
+	plan := state
+	plan.BudgetCurrency = types.StringValue("EUR")
+
+	changes := detectImmutableCampaignChanges(ctx, state, plan)
+	if len(changes) != 1 || changes[0].Field != "budget_currency" {
+		t.Fatalf("changes = %#v", changes)
+	}
+}
+
+func TestDetectImmutableCampaignChanges_DailyBudgetStillMutable(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+
+	countries, _ := types.ListValueFrom(ctx, types.StringType, []string{"US"})
+	supply, _ := types.ListValueFrom(ctx, types.StringType, []string{"APPSTORE_SEARCH_RESULTS"})
+
+	state := campaignModel{
+		ID:                  types.StringValue("79"),
+		AdamID:              types.StringValue("1"),
+		CountriesOrRegions:  countries,
+		SupplySources:       supply,
+		BudgetAmount:        types.StringValue("100.00"),
+		BudgetCurrency:      types.StringValue("USD"),
+		DailyBudgetAmount:   types.StringValue("10.00"),
+		DailyBudgetCurrency: types.StringValue("USD"),
+	}
+	plan := state
+	plan.DailyBudgetAmount = types.StringValue("20.00")
+	plan.Name = types.StringValue("renamed")
+
+	changes := detectImmutableCampaignChanges(ctx, state, plan)
+	if len(changes) != 0 {
+		t.Fatalf("daily budget / name changes must not be immutable, got %#v", changes)
+	}
+}
+
 func TestDetectImmutableCampaignChanges_CountryReorderIsNotAChange(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
@@ -110,6 +200,35 @@ func TestDetectImmutableCampaignChanges_CountryReorderIsNotAChange(t *testing.T)
 	changes := detectImmutableCampaignChanges(ctx, state, plan)
 	if len(changes) != 0 {
 		t.Fatalf("reorder should not be an identity change, got %#v", changes)
+	}
+}
+
+func TestCampaignUpdateFromPlan_OmitsBudgetAmount(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	upd, diags := campaignUpdateFromPlan(ctx, campaignModel{
+		Name:                types.StringValue("Keep Total"),
+		Status:              types.StringValue("PAUSED"),
+		BudgetAmount:        types.StringValue("500.00"),
+		BudgetCurrency:      types.StringValue("USD"),
+		DailyBudgetAmount:   types.StringValue("15.00"),
+		DailyBudgetCurrency: types.StringValue("USD"),
+		BudgetOrders:        types.ListNull(types.StringType),
+	})
+	if diags.HasError() {
+		t.Fatalf("%v", diags)
+	}
+	if upd.DailyBudgetAmount == nil || upd.DailyBudgetAmount.Amount != "15.00" {
+		t.Fatalf("dailyBudgetAmount = %#v", upd.DailyBudgetAmount)
+	}
+	// Reflect: CampaignUpdate must not expose BudgetAmount for Terraform updates.
+	raw, err := json.Marshal(upd)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(raw), "budgetAmount") {
+		t.Fatalf("update JSON must omit budgetAmount, got %s", raw)
 	}
 }
 
