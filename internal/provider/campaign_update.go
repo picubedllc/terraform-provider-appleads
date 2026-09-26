@@ -30,6 +30,12 @@ func detectImmutableCampaignChanges(ctx context.Context, state, plan campaignMod
 	if !stringAttrEqual(state.BillingEvent, plan.BillingEvent) {
 		changes = append(changes, immutableCampaignFieldChange{Field: "billing_event"})
 	}
+	if !stringAttrEqual(state.BudgetAmount, plan.BudgetAmount) {
+		changes = append(changes, immutableCampaignFieldChange{Field: "budget_amount"})
+	}
+	if !stringAttrEqual(state.BudgetCurrency, plan.BudgetCurrency) {
+		changes = append(changes, immutableCampaignFieldChange{Field: "budget_currency"})
+	}
 	if !listAttrSetEqual(ctx, state.CountriesOrRegions, plan.CountriesOrRegions) {
 		changes = append(changes, immutableCampaignFieldChange{Field: "countries_or_regions"})
 	}
@@ -92,9 +98,7 @@ func campaignUpdateFromPlan(ctx context.Context, plan campaignModel) (*client.Ca
 	if !plan.Status.IsNull() && !plan.Status.IsUnknown() {
 		upd.Status = plan.Status.ValueString()
 	}
-	budget, d := moneyFromStrings(plan.BudgetAmount, plan.BudgetCurrency)
-	diags.Append(d...)
-	upd.BudgetAmount = budget
+	// budget_amount / budget_currency are create-only; never send on update.
 	daily, d := moneyFromStrings(plan.DailyBudgetAmount, plan.DailyBudgetCurrency)
 	diags.Append(d...)
 	upd.DailyBudgetAmount = daily

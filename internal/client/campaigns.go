@@ -30,15 +30,16 @@ const (
 
 // Campaign is an Apple Ads campaign (API v5).
 //
-// Mutability (Terraform classification — confirmed against Apple Ads Campaign
-// Management API v5 update semantics):
+// Mutability (Terraform classification — Apple Ads Campaign Management API v5;
+// budgetAmount treated as create-only per Apple docs / safe default from live probes):
 //
-//	Immutable (cannot change in place; Terraform must NOT RequiresReplace):
+//	Immutable / create-only (cannot change in place; Terraform must NOT RequiresReplace):
 //	  - AdamID
 //	  - CountriesOrRegions
 //	  - SupplySources
 //	  - AdChannelType
 //	  - BillingEvent (tied to channel/supply at create)
+//	  - BudgetAmount (lifetime total; set on create only)
 //
 //	Mutable (in-place update supported):
 //	  - Name
@@ -49,8 +50,7 @@ const (
 //	  - BiddingStrategy
 //	  - TargetCpa (required when BiddingStrategy is MAX_CONVERSIONS)
 //
-//	Create-only / probe-dependent:
-//	  - BudgetAmount — Apple documents create-only; live probes confirm update behavior
+//	Create optional / probe-dependent:
 //	  - StartTime — settable on create; update support is probe-dependent
 //
 //	Computed / read-only from Apple:
@@ -105,10 +105,13 @@ type CampaignCreate struct {
 
 // CampaignUpdate is the mutable subset for PUT /campaigns/{id}.
 // Wrapped as {"campaign": {...}} by UpdateCampaign.
+//
+// BudgetAmount is intentionally absent: Apple documents lifetime budget as
+// create-only. Terraform never sends budgetAmount on update. Live probes that
+// still need to exercise a rejected update may POST a raw JSON body.
 type CampaignUpdate struct {
 	Name              string  `json:"name,omitempty"`
 	Status            string  `json:"status,omitempty"`
-	BudgetAmount      *Money  `json:"budgetAmount,omitempty"`
 	DailyBudgetAmount *Money  `json:"dailyBudgetAmount,omitempty"`
 	BudgetOrders      []int64 `json:"budgetOrders,omitempty"`
 	BiddingStrategy   string  `json:"biddingStrategy,omitempty"`

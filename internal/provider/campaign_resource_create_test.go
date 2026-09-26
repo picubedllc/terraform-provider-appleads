@@ -86,6 +86,79 @@ func TestCampaignCreateFromPlan_AndStateFromResponse(t *testing.T) {
 	}
 }
 
+func TestCampaignCreate_WithBudgetAmount(t *testing.T) {
+	t.Parallel()
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body client.CampaignCreate
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Fatal(err)
+		}
+		if body.BudgetAmount == nil || body.BudgetAmount.Amount != "500.00" || body.BudgetAmount.Currency != "USD" {
+			t.Fatalf("budgetAmount = %#v", body.BudgetAmount)
+		}
+		if body.DailyBudgetAmount == nil || body.DailyBudgetAmount.Amount != "25.00" {
+			t.Fatalf("dailyBudgetAmount = %#v", body.DailyBudgetAmount)
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"data": map[string]any{
+				"id":                 56,
+				"name":               body.Name,
+				"adamId":             body.AdamID,
+				"status":             "PAUSED",
+				"countriesOrRegions": body.CountriesOrRegions,
+				"budgetAmount":       map[string]string{"amount": "500.00", "currency": "USD"},
+				"dailyBudgetAmount":  map[string]string{"amount": "25.00", "currency": "USD"},
+				"modificationTime":   "2026-02-01T00:00:00Z",
+			},
+		})
+	}))
+	t.Cleanup(srv.Close)
+
+	apiClient, err := client.New(client.WithBaseURL(srv.URL))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ctx := context.Background()
+	countries, diags := types.ListValueFrom(ctx, types.StringType, []string{"US"})
+	if diags.HasError() {
+		t.Fatal(diags)
+	}
+	plan := campaignModel{
+		Name:                types.StringValue("Lifetime Cap"),
+		AdamID:              types.StringValue("9"),
+		Status:              types.StringValue("PAUSED"),
+		CountriesOrRegions:  countries,
+		BudgetAmount:        types.StringValue("500.00"),
+		BudgetCurrency:      types.StringValue("USD"),
+		DailyBudgetAmount:   types.StringValue("25.00"),
+		DailyBudgetCurrency: types.StringValue("USD"),
+		SupplySources:       types.ListNull(types.StringType),
+		BudgetOrders:        types.ListNull(types.StringType),
+	}
+
+	in, diags := campaignCreateFromPlan(ctx, plan)
+	if diags.HasError() {
+		t.Fatalf("%v", diags)
+	}
+	created, err := apiClient.CreateCampaign(ctx, in)
+	if err != nil {
+		t.Fatal(err)
+	}
+	state, diags := campaignModelFromClient(ctx, created)
+	if diags.HasError() {
+		t.Fatalf("%v", diags)
+	}
+	state, diags = overlayCampaignReported(ctx, plan, state)
+	if diags.HasError() {
+		t.Fatalf("%v", diags)
+	}
+	if state.BudgetAmount.ValueString() != "500.00" || state.BudgetCurrency.ValueString() != "USD" {
+		t.Fatalf("budget = %s %s", state.BudgetAmount.ValueString(), state.BudgetCurrency.ValueString())
+	}
+}
+
 func TestCampaignCreate_KeepsConfiguredCountryOrderWhenAppleReorders(t *testing.T) {
 	t.Parallel()
 

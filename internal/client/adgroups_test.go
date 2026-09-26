@@ -177,19 +177,19 @@ func TestCreateAdGroup_MoneyRoundTripNoFloat(t *testing.T) {
 	}
 }
 
-func TestUpdateAdGroup_WrapsEnvelope(t *testing.T) {
+func TestUpdateAdGroup_SendsBareBody(t *testing.T) {
 	t.Parallel()
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPut || r.URL.Path != "/campaigns/10/adgroups/77" {
 			t.Fatalf("unexpected %s %s", r.Method, r.URL.Path)
 		}
-		var env adGroupUpdateEnvelope
-		if err := json.NewDecoder(r.Body).Decode(&env); err != nil {
+		var body AdGroupUpdate
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 			t.Fatal(err)
 		}
-		if env.AdGroup == nil || env.AdGroup.Name != "Renamed" {
-			t.Fatalf("env = %#v", env)
+		if body.Name != "Renamed" || body.Status != "PAUSED" {
+			t.Fatalf("body = %#v", body)
 		}
 		_ = json.NewEncoder(w).Encode(map[string]any{
 			"data": map[string]any{
@@ -397,13 +397,12 @@ func TestUpdateAdGroup_TargetingDimensionsSendsNullsForUnset(t *testing.T) {
 		if err := json.NewDecoder(r.Body).Decode(&raw); err != nil {
 			t.Fatal(err)
 		}
-		ag, ok := raw["adGroup"].(map[string]any)
-		if !ok {
-			t.Fatalf("envelope = %#v", raw)
+		if _, wrapped := raw["adGroup"]; wrapped {
+			t.Fatalf("must not wrap update body in adGroup: %#v", raw)
 		}
-		td, ok := ag["targetingDimensions"].(map[string]any)
+		td, ok := raw["targetingDimensions"].(map[string]any)
 		if !ok {
-			t.Fatalf("targetingDimensions = %#v", ag["targetingDimensions"])
+			t.Fatalf("targetingDimensions = %#v", raw["targetingDimensions"])
 		}
 		for _, key := range []string{"age", "gender", "deviceClass", "country", "adminArea", "daypart", "appDownloaders"} {
 			if td[key] != nil {
@@ -446,14 +445,13 @@ func TestUpdateAdGroup_ClearTargetingDimensions(t *testing.T) {
 		if err := json.NewDecoder(r.Body).Decode(&raw); err != nil {
 			t.Fatal(err)
 		}
-		ag, ok := raw["adGroup"].(map[string]any)
-		if !ok {
-			t.Fatalf("envelope = %#v", raw)
+		if _, wrapped := raw["adGroup"]; wrapped {
+			t.Fatalf("must not wrap update body in adGroup: %#v", raw)
 		}
-		if ag["targetingDimensions"] != nil {
-			t.Fatalf("targetingDimensions = %#v, want JSON null", ag["targetingDimensions"])
+		if raw["targetingDimensions"] != nil {
+			t.Fatalf("targetingDimensions = %#v, want JSON null", raw["targetingDimensions"])
 		}
-		if _, present := ag["targetingDimensions"]; !present {
+		if _, present := raw["targetingDimensions"]; !present {
 			t.Fatal("targetingDimensions key missing; want explicit null")
 		}
 		_ = json.NewEncoder(w).Encode(map[string]any{
@@ -482,12 +480,14 @@ func TestUpdateAdGroup_OmitsTargetingWhenUnset(t *testing.T) {
 		if err := json.NewDecoder(r.Body).Decode(&raw); err != nil {
 			t.Fatal(err)
 		}
-		ag, ok := raw["adGroup"].(map[string]any)
-		if !ok {
-			t.Fatalf("envelope = %#v", raw)
+		if _, wrapped := raw["adGroup"]; wrapped {
+			t.Fatalf("must not wrap update body in adGroup: %#v", raw)
 		}
-		if _, present := ag["targetingDimensions"]; present {
-			t.Fatalf("targetingDimensions should be omitted, got %#v", ag["targetingDimensions"])
+		if _, present := raw["targetingDimensions"]; present {
+			t.Fatalf("targetingDimensions should be omitted, got %#v", raw["targetingDimensions"])
+		}
+		if raw["name"] != "Renamed" {
+			t.Fatalf("name = %#v", raw["name"])
 		}
 		_ = json.NewEncoder(w).Encode(map[string]any{
 			"data": map[string]any{"id": 77, "campaignId": 10, "name": "Renamed"},

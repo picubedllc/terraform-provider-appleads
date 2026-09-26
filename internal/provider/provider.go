@@ -190,6 +190,8 @@ func (p *AppleAdsProvider) Resources(ctx context.Context) []func() resource.Reso
 		NewAdGroupResource,
 		NewKeywordResource,
 		NewNegativeKeywordResource,
+		NewCreativeResource,
+		NewAdResource,
 	}
 }
 
@@ -200,7 +202,12 @@ func (p *AppleAdsProvider) DataSources(ctx context.Context) []func() datasource.
 		NewCampaignReportDataSource,
 		NewAdGroupReportDataSource,
 		NewKeywordReportDataSource,
+		NewSearchTermReportDataSource,
 		NewGeolocationsDataSource,
+		NewProductPagesDataSource,
+		NewProductPageDataSource,
+		NewProductPageLocalesDataSource,
+		NewCountriesOrRegionsDataSource,
 	}
 }
 
