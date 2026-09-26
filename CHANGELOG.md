@@ -1,5 +1,9 @@
 ## Unreleased
 
+FEATURES:
+
+* Add plan-time validators for `appleads_campaign` channel / supply / billing / bidding combinations, plus optional `bidding_strategy` (`MANUAL_CPT` | `MAX_CONVERSIONS`). Docs describe the matrix and that Display delivery still needs creatives/ads.
+
 ## 0.3.4
 
 BUG FIXES:

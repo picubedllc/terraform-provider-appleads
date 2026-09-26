@@ -101,6 +101,9 @@ func campaignUpdateFromPlan(ctx context.Context, plan campaignModel) (*client.Ca
 	orders, d := int64ListFromStrings(ctx, plan.BudgetOrders)
 	diags.Append(d...)
 	upd.BudgetOrders = orders
+	if !plan.BiddingStrategy.IsNull() && !plan.BiddingStrategy.IsUnknown() && plan.BiddingStrategy.ValueString() != "" {
+		upd.BiddingStrategy = plan.BiddingStrategy.ValueString()
+	}
 	if !plan.EndTime.IsNull() && !plan.EndTime.IsUnknown() {
 		upd.EndTime = plan.EndTime.ValueString()
 	}
