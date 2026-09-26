@@ -1,0 +1,1 @@
+terraform import appleads_campaign.search_manual 1234567890

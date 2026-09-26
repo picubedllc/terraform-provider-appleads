@@ -15,6 +15,15 @@ you can switch strategies and change target CPA in place when the API allows.
 Lifetime lifetime `budget_amount` / `budget_currency` are create-only (immutable after
 create). Daily budget (`daily_budget_amount` / `daily_budget_currency`) stays mutable.
 
+## Maximize Conversions automated ad group
+
+Apple may auto-create an Automated Ad Group after a Max Conversions campaign
+create. That group is **outside Terraform state** until you import it as a
+normal [`appleads_ad_group`](../appleads_ad_group/) using
+`campaign_id/ad_group_id` or bare `ad_group_id`. See the ad group example README
+for the import workflow and keyword / default-bid caveats. Display is not
+valid with Max Conversions.
+
 ## Import
 
 ```bash

@@ -298,6 +298,9 @@ func TestCampaignResource_SchemaDocumentsComboMatrix(t *testing.T) {
 		"MAX_CONVERSIONS",
 		"target_cpa_amount",
 		"creatives/ads",
+		"Maximize Conversions automated ad group",
+		"campaign_id/ad_group_id",
+		"default_bid_amount",
 	} {
 		if !strings.Contains(desc, want) {
 			t.Fatalf("schema description missing %q", want)
