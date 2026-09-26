@@ -3,10 +3,24 @@
 FEATURES:
 
 * Add plan-time validators for `appleads_campaign` channel / supply / billing / bidding combinations, plus optional `bidding_strategy` (`MANUAL_CPT` | `MAX_CONVERSIONS`). Docs describe the matrix and that Display delivery still needs creatives/ads.
+
+## 0.3.4
+
+BUG FIXES:
+
+* Send Apple Ads ad group updates as a bare partial body. PUT `/campaigns/{id}/adgroups/{id}` does not use an `{"adGroup":...}` envelope (unlike campaigns); the wrapper caused `UNRECOGNIZED_PROPERTY` on field `[adGroup]` when setting `targeting_dimensions` (including locality).
+
+## 0.3.3
+
+FEATURES:
+
+* Add `appleads_creative` and `appleads_ad` resources for Apple Ads `/creatives` and campaign ad-group `/ads` endpoints. Creatives wire to product page IDs from the product-page data sources; Display / Today Tab docs note localization requirements. Creative destroy is state-only (API v5 has no creative delete). Immutable fields error instead of `RequiresReplace`.
+* Add read-only `appleads_product_pages`, `appleads_product_page`, `appleads_product_page_locales`, and `appleads_countries_or_regions` data sources for App Store Connect product-page and country/region lookups via Apple Ads API v5. Product pages are owned in App Store Connect; the Ads API does not create or mutate them.
 * Add optional `targeting_dimensions` on `appleads_ad_group` mapped to Apple Ads `targetingDimensions`, including geo (`locality`, `admin_area`, `country`) plus age, gender, `device_class`, `daypart`, and `app_downloaders`. City targeting uses locality IDs such as `US|NY|New York` (single-country campaigns only).
 * Add `appleads_geolocations` data source for Search for Geolocations (`GET /search/geo`) so locality IDs can be resolved instead of hardcoding blindly.
 * Add `appleads_keyword_bid_recommendations` data source to read Apple's suggested CPT (`insights.bidRecommendation`) from keyword reports. Observational only: do not copy `suggested_bid_amount` into `appleads_keyword.bid_amount`.
 * Add read-only `appleads_campaign_report`, `appleads_ad_group_report`, and `appleads_keyword_report` data sources for impressions, taps, TTR, spend, average CPT, installs, conversion rate, and CPA.
+* Add `appleads_search_term_report` data source for campaign- or ad-group-scoped search-term performance. Defaults `time_zone` to `ORTZ` (required by Apple). Observational only.
 
 BUG FIXES:
 
