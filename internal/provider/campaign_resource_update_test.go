@@ -113,6 +113,50 @@ func TestDetectImmutableCampaignChanges_CountryReorderIsNotAChange(t *testing.T)
 	}
 }
 
+func TestCampaignUpdateFromPlan_BiddingStrategyAndTargetCpa(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	upd, diags := campaignUpdateFromPlan(ctx, campaignModel{
+		Name:              types.StringValue("Updated Max"),
+		Status:            types.StringValue("PAUSED"),
+		BiddingStrategy:   types.StringValue(client.BiddingStrategyMaxConversions),
+		TargetCpaAmount:   types.StringValue("12.00"),
+		TargetCpaCurrency: types.StringValue("USD"),
+		BudgetOrders:      types.ListNull(types.StringType),
+	})
+	if diags.HasError() {
+		t.Fatalf("%v", diags)
+	}
+	if upd.BiddingStrategy != client.BiddingStrategyMaxConversions {
+		t.Fatalf("biddingStrategy = %q", upd.BiddingStrategy)
+	}
+	if upd.TargetCpa == nil || upd.TargetCpa.Amount != "12.00" || upd.TargetCpa.Currency != "USD" {
+		t.Fatalf("targetCpa = %#v", upd.TargetCpa)
+	}
+}
+
+func TestCampaignUpdateFromPlan_SwitchToManualCPT(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	upd, diags := campaignUpdateFromPlan(ctx, campaignModel{
+		Name:            types.StringValue("Back to Manual"),
+		Status:          types.StringValue("PAUSED"),
+		BiddingStrategy: types.StringValue(client.BiddingStrategyManualCPT),
+		BudgetOrders:    types.ListNull(types.StringType),
+	})
+	if diags.HasError() {
+		t.Fatalf("%v", diags)
+	}
+	if upd.BiddingStrategy != client.BiddingStrategyManualCPT {
+		t.Fatalf("biddingStrategy = %q", upd.BiddingStrategy)
+	}
+	if upd.TargetCpa != nil {
+		t.Fatalf("targetCpa should be omitted for Manual, got %#v", upd.TargetCpa)
+	}
+}
+
 func TestCampaignUpdate_MutableSucceeds(t *testing.T) {
 	t.Parallel()
 

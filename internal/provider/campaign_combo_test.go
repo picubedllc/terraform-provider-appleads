@@ -23,6 +23,7 @@ func TestValidateCampaignCombo_ValidSearchManual(t *testing.T) {
 		[]string{client.SupplySourceSearchResults},
 		client.BillingEventTaps,
 		client.BiddingStrategyManualCPT,
+		"",
 	)
 	if diags.HasError() {
 		t.Fatalf("expected valid Search+Manual: %v", diags)
@@ -32,15 +33,15 @@ func TestValidateCampaignCombo_ValidSearchManual(t *testing.T) {
 func TestValidateCampaignCombo_ValidSearchMaxConversions(t *testing.T) {
 	t.Parallel()
 
-	// target_cpa is not on schema yet; combo validation still accepts Max Conv + Search.
 	diags := validateCampaignCombo(
 		client.AdChannelTypeSearch,
 		[]string{client.SupplySourceSearchResults},
 		client.BillingEventTaps,
 		client.BiddingStrategyMaxConversions,
+		"10.00",
 	)
 	if diags.HasError() {
-		t.Fatalf("expected valid Search+MaxConversions: %v", diags)
+		t.Fatalf("expected valid Search+MaxConversions with target CPA: %v", diags)
 	}
 }
 
@@ -59,6 +60,7 @@ func TestValidateCampaignCombo_ValidDisplayCombos(t *testing.T) {
 				[]string{supply},
 				client.BillingEventTaps,
 				client.BiddingStrategyManualCPT,
+				"",
 			)
 			if diags.HasError() {
 				t.Fatalf("expected valid Display+%s: %v", supply, diags)
@@ -71,12 +73,13 @@ func TestValidateCampaignCombo_InvalidCrossCombos(t *testing.T) {
 	t.Parallel()
 
 	cases := []struct {
-		name    string
-		channel string
-		supply  []string
-		billing string
-		bidding string
-		wantSub string
+		name      string
+		channel   string
+		supply    []string
+		billing   string
+		bidding   string
+		targetCpa string
+		wantSub   string
 	}{
 		{
 			name:    "search-with-display-supply",
@@ -95,20 +98,39 @@ func TestValidateCampaignCombo_InvalidCrossCombos(t *testing.T) {
 			wantSub: "DISPLAY campaigns require",
 		},
 		{
-			name:    "display-with-max-conversions",
-			channel: client.AdChannelTypeDisplay,
-			supply:  []string{client.SupplySourceSearchTab},
-			billing: client.BillingEventTaps,
-			bidding: client.BiddingStrategyMaxConversions,
-			wantSub: "DISPLAY campaigns support only",
+			name:      "display-with-max-conversions",
+			channel:   client.AdChannelTypeDisplay,
+			supply:    []string{client.SupplySourceSearchTab},
+			billing:   client.BillingEventTaps,
+			bidding:   client.BiddingStrategyMaxConversions,
+			targetCpa: "10.00",
+			wantSub:   "DISPLAY campaigns support only",
 		},
 		{
-			name:    "max-conversions-without-search-results",
+			name:      "max-conversions-without-search-results",
+			channel:   client.AdChannelTypeSearch,
+			supply:    []string{client.SupplySourceProductPagesBrowse},
+			billing:   client.BillingEventTaps,
+			bidding:   client.BiddingStrategyMaxConversions,
+			targetCpa: "10.00",
+			wantSub:   "MAX_CONVERSIONS requires Search Results",
+		},
+		{
+			name:    "max-conversions-without-target-cpa",
 			channel: client.AdChannelTypeSearch,
-			supply:  []string{client.SupplySourceProductPagesBrowse},
+			supply:  []string{client.SupplySourceSearchResults},
 			billing: client.BillingEventTaps,
 			bidding: client.BiddingStrategyMaxConversions,
-			wantSub: "MAX_CONVERSIONS requires Search Results",
+			wantSub: "MAX_CONVERSIONS requires target_cpa_amount",
+		},
+		{
+			name:      "max-conversions-with-zero-target-cpa",
+			channel:   client.AdChannelTypeSearch,
+			supply:    []string{client.SupplySourceSearchResults},
+			billing:   client.BillingEventTaps,
+			bidding:   client.BiddingStrategyMaxConversions,
+			targetCpa: "0",
+			wantSub:   "Invalid target_cpa_amount",
 		},
 		{
 			name:    "mixed-search-and-display-supply-on-search",
@@ -123,7 +145,7 @@ func TestValidateCampaignCombo_InvalidCrossCombos(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			diags := validateCampaignCombo(tc.channel, tc.supply, tc.billing, tc.bidding)
+			diags := validateCampaignCombo(tc.channel, tc.supply, tc.billing, tc.bidding, tc.targetCpa)
 			if !diags.HasError() {
 				t.Fatal("expected error diagnostics")
 			}
@@ -144,7 +166,7 @@ func TestValidateCampaignCombo_InvalidCrossCombos(t *testing.T) {
 func TestValidateCampaignCombo_DefaultsTreatOmittedAsSearchManual(t *testing.T) {
 	t.Parallel()
 
-	diags := validateCampaignCombo("", nil, "", "")
+	diags := validateCampaignCombo("", nil, "", "", "")
 	if diags.HasError() {
 		t.Fatalf("empty inputs should default to valid Search+Manual: %v", diags)
 	}
@@ -199,6 +221,8 @@ func TestCampaignResource_ValidateConfig_ValidAndInvalid(t *testing.T) {
 				SupplySources:      searchSupply,
 				BillingEvent:       types.StringValue(client.BillingEventTaps),
 				BiddingStrategy:    types.StringValue(client.BiddingStrategyMaxConversions),
+				TargetCpaAmount:    types.StringValue("10.00"),
+				TargetCpaCurrency:  types.StringValue("USD"),
 			},
 		},
 		{
@@ -221,6 +245,20 @@ func TestCampaignResource_ValidateConfig_ValidAndInvalid(t *testing.T) {
 				CountriesOrRegions: countries,
 				AdChannelType:      types.StringValue(client.AdChannelTypeDisplay),
 				SupplySources:      displaySupply,
+				BillingEvent:       types.StringValue(client.BillingEventTaps),
+				BiddingStrategy:    types.StringValue(client.BiddingStrategyMaxConversions),
+				TargetCpaAmount:    types.StringValue("10.00"),
+			},
+			wantErr: true,
+		},
+		{
+			name: "invalid-max-conversions-without-target-cpa",
+			model: campaignModel{
+				Name:               types.StringValue("bad-max"),
+				AdamID:             types.StringValue("1"),
+				CountriesOrRegions: countries,
+				AdChannelType:      types.StringValue(client.AdChannelTypeSearch),
+				SupplySources:      searchSupply,
 				BillingEvent:       types.StringValue(client.BillingEventTaps),
 				BiddingStrategy:    types.StringValue(client.BiddingStrategyMaxConversions),
 			},
@@ -258,6 +296,7 @@ func TestCampaignResource_SchemaDocumentsComboMatrix(t *testing.T) {
 		"Channel / supply / billing / bidding matrix",
 		"APPSTORE_SEARCH_RESULTS",
 		"MAX_CONVERSIONS",
+		"target_cpa_amount",
 		"creatives/ads",
 	} {
 		if !strings.Contains(desc, want) {
@@ -273,6 +312,16 @@ func TestCampaignResource_SchemaDocumentsComboMatrix(t *testing.T) {
 	}
 	if !strings.Contains(strings.ToLower(bidding.GetMarkdownDescription()), "mutable") {
 		t.Fatal("bidding_strategy should document mutability")
+	}
+	targetAmt, ok := resp.Schema.Attributes["target_cpa_amount"]
+	if !ok {
+		t.Fatal("missing target_cpa_amount attribute")
+	}
+	if !targetAmt.IsOptional() || targetAmt.IsRequired() {
+		t.Fatal("target_cpa_amount should be Optional")
+	}
+	if !strings.Contains(strings.ToLower(targetAmt.GetMarkdownDescription()), "mutable") {
+		t.Fatal("target_cpa_amount should document mutability")
 	}
 }
 
@@ -315,6 +364,8 @@ func campaignModelWithNullDefaults(m campaignModel) campaignModel {
 	m.AdChannelType = nullEmptyString(m.AdChannelType)
 	m.BillingEvent = nullEmptyString(m.BillingEvent)
 	m.BiddingStrategy = nullEmptyString(m.BiddingStrategy)
+	m.TargetCpaAmount = nullEmptyString(m.TargetCpaAmount)
+	m.TargetCpaCurrency = nullEmptyString(m.TargetCpaCurrency)
 	m.BudgetAmount = nullEmptyString(m.BudgetAmount)
 	m.BudgetCurrency = nullEmptyString(m.BudgetCurrency)
 	m.DailyBudgetAmount = nullEmptyString(m.DailyBudgetAmount)
