@@ -192,6 +192,7 @@ func (p *AppleAdsProvider) Resources(ctx context.Context) []func() resource.Reso
 		NewNegativeKeywordResource,
 		NewCreativeResource,
 		NewAdResource,
+		NewBudgetOrderResource,
 	}
 }
 

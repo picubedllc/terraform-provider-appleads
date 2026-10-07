@@ -6,6 +6,8 @@ FEATURES:
 * Classify `budget_amount` / `budget_currency` as create-only on `appleads_campaign`. Changing them after create returns an immutable-field diagnostic (no `RequiresReplace`); `daily_budget_*` stays mutable ([#46](https://github.com/picubedllc/terraform-provider-appleads/issues/46)).
 * Complete Maximize Conversions on `appleads_campaign`: optional `target_cpa_amount` / `target_cpa_currency`, create/update/read wiring for `TargetCpa` and `BiddingStrategy`, plan-time validation that `MAX_CONVERSIONS` requires Search Results supply and a positive target CPA ([#44](https://github.com/picubedllc/terraform-provider-appleads/issues/44)).
 * Add plan-time validators for `appleads_campaign` channel / supply / billing / bidding combinations, plus optional `bidding_strategy` (`MANUAL_CPT` | `MAX_CONVERSIONS`). Docs describe the matrix and that Display delivery still needs creatives/ads.
+* Add `appleads_budget_order` resource for Apple Ads `/budgetorders` (create, read, update, import). Campaigns can reference managed order IDs via `budget_orders`. Destroy removes Terraform state only — API v5 has no delete endpoint.
+
 
 ## 0.3.4
 
