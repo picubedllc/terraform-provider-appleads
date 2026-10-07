@@ -4,13 +4,125 @@ page_title: "appleads_campaign Resource - appleads"
 subcategory: ""
 description: |-
   Manages an Apple Ads campaign. Immutable fields never trigger automatic replacement; changing them returns an error diagnostic so historical campaign identity is preserved.
+  Channel / supply / billing / bidding matrix
+  Apple Ads Campaign Management API v5 allows these combinations only:
+  | Channel | Supply sources | Billing | Bidding |
+  |---|---|---|---|
+  | `SEARCH` | `APPSTORE_SEARCH_RESULTS` | `TAPS` | `MANUAL_CPT` or `MAX_CONVERSIONS` |
+  | `DISPLAY` | `APPSTORE_TODAY_TAB` / `APPSTORE_SEARCH_TAB` / `APPSTORE_PRODUCT_PAGES_BROWSE` | `TAPS` | `MANUAL_CPT` only |
+  MAX_CONVERSIONS requires Search Results supply and a positive target_cpa_amount.
+  Display note: Configuring a Display campaign is supported for create/read, but end-to-end delivery still requires creatives/ads (not yet managed by this provider). Max Conversions does not apply to Display.
+  Maximize Conversions automated ad group
+  When Apple accepts a Maximize Conversions campaign create, it may auto-create an Automated Ad Group (Search Match on, broad audience, default product page ad) outside Terraform state. That object is a normal appleads_ad_group — this provider does not invent a separate automated-ad-group resource type.
+  Recommended workflow after create:
+  Create the appleads_campaign with bidding_strategy = MAX_CONVERSIONS and target_cpa_amount.List ad groups for the campaign (Apple API or UI). The auto-created group may appear after a short delay; the campaign can sit in an ad-group-missing serving state until then.Import it with the existing appleads_ad_group import formats: campaign_id/ad_group_id (preferred) or bare ad_group_id.Manage target_cpa_amount on the campaign as usual; do not create a second Terraform ad group that duplicates Apple's automated one.
+  Known limitations under Max Conversions:
+  Keyword semantics differ from Manual CPT: Apple's auto-bidder drives delivery; additional keywords are closer to guides/pauses than classic CPT bids.Ad group default_bid_amount may be ignored or constrained by the campaign-level target CPA auto-bidder.Display channel / Display supplies are not valid with Max Conversions.
 ---
 
 # appleads_campaign (Resource)
 
 Manages an Apple Ads campaign. Immutable fields never trigger automatic replacement; changing them returns an error diagnostic so historical campaign identity is preserved.
 
+## Channel / supply / billing / bidding matrix
 
+Apple Ads Campaign Management API v5 allows these combinations only:
+
+| Channel | Supply sources | Billing | Bidding |
+|---|---|---|---|
+| `SEARCH` | `APPSTORE_SEARCH_RESULTS` | `TAPS` | `MANUAL_CPT` or `MAX_CONVERSIONS` |
+| `DISPLAY` | `APPSTORE_TODAY_TAB` / `APPSTORE_SEARCH_TAB` / `APPSTORE_PRODUCT_PAGES_BROWSE` | `TAPS` | `MANUAL_CPT` only |
+
+`MAX_CONVERSIONS` requires Search Results supply and a positive `target_cpa_amount`.
+
+**Display note:** Configuring a Display campaign is supported for create/read, but end-to-end delivery still requires creatives/ads (not yet managed by this provider). Max Conversions does not apply to Display.
+
+## Maximize Conversions automated ad group
+
+When Apple accepts a Maximize Conversions campaign create, it may auto-create an Automated Ad Group (Search Match on, broad audience, default product page ad) **outside Terraform state**. That object is a normal `appleads_ad_group` — this provider does **not** invent a separate automated-ad-group resource type.
+
+Recommended workflow after create:
+
+1. Create the `appleads_campaign` with `bidding_strategy = MAX_CONVERSIONS` and `target_cpa_amount`.
+2. List ad groups for the campaign (Apple API or UI). The auto-created group may appear after a short delay; the campaign can sit in an ad-group-missing serving state until then.
+3. Import it with the existing `appleads_ad_group` import formats: `campaign_id/ad_group_id` (preferred) or bare `ad_group_id`.
+4. Manage `target_cpa_amount` on the campaign as usual; do not create a second Terraform ad group that duplicates Apple's automated one.
+
+**Known limitations under Max Conversions:**
+
+- Keyword semantics differ from Manual CPT: Apple's auto-bidder drives delivery; additional keywords are closer to guides/pauses than classic CPT bids.
+- Ad group `default_bid_amount` may be ignored or constrained by the campaign-level target CPA auto-bidder.
+- Display channel / Display supplies are not valid with Max Conversions.
+
+## Example Usage
+
+```terraform
+# Manages an Apple Ads campaign.
+#
+# Immutable / create-only fields (adam_id, countries_or_regions, supply_sources,
+# ad_channel_type, billing_event, budget_amount, budget_currency) never trigger
+# automatic replacement — changing them returns an error so historical campaign
+# identity is preserved. daily_budget_amount remains mutable in place.
+#
+# Manual CPT (default when bidding_strategy is omitted):
+
+resource "appleads_campaign" "search_manual" {
+  name                  = "Search — Manual CPT"
+  adam_id               = data.appleads_app.app.adam_id
+  countries_or_regions  = ["US"]
+  status                = "PAUSED"
+  daily_budget_amount   = "25.00"
+  daily_budget_currency = "USD"
+  ad_channel_type       = "SEARCH"
+  supply_sources        = ["APPSTORE_SEARCH_RESULTS"]
+  billing_event         = "TAPS"
+  bidding_strategy      = "MANUAL_CPT"
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+
+# Maximize Conversions requires Search Results supply and target CPA:
+
+resource "appleads_campaign" "search_max_conversions" {
+  name                  = "Search — Max Conversions"
+  adam_id               = data.appleads_app.app.adam_id
+  countries_or_regions  = ["US"]
+  status                = "PAUSED"
+  daily_budget_amount   = "25.00"
+  daily_budget_currency = "USD"
+  ad_channel_type       = "SEARCH"
+  supply_sources        = ["APPSTORE_SEARCH_RESULTS"]
+  billing_event         = "TAPS"
+  bidding_strategy      = "MAX_CONVERSIONS"
+  target_cpa_amount     = "10.00"
+  target_cpa_currency   = "USD"
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+
+# Display campaigns support MANUAL_CPT only (creatives/ads still required to serve):
+
+resource "appleads_campaign" "display" {
+  name                  = "Display — Today Tab"
+  adam_id               = data.appleads_app.app.adam_id
+  countries_or_regions  = ["US"]
+  status                = "PAUSED"
+  daily_budget_amount   = "25.00"
+  daily_budget_currency = "USD"
+  ad_channel_type       = "DISPLAY"
+  supply_sources        = ["APPSTORE_TODAY_TAB"]
+  billing_event         = "TAPS"
+  bidding_strategy      = "MANUAL_CPT"
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+```
 
 <!-- schema generated by tfplugindocs -->
 ## Schema
@@ -23,19 +135,35 @@ Manages an Apple Ads campaign. Immutable fields never trigger automatic replacem
 
 ### Optional
 
-- `ad_channel_type` (String) Ad channel type such as `SEARCH` (immutable).
-- `budget_amount` (String) Lifetime campaign budget amount as a decimal string (mutable). Never use floating point.
-- `budget_currency` (String) Currency code for budget_amount (e.g. USD).
+- `ad_channel_type` (String) Ad channel type: `SEARCH` or `DISPLAY` (immutable). Defaults to `SEARCH` when omitted. Must match supply_sources and bidding_strategy (see resource docs matrix).
+- `bidding_strategy` (String) Bidding strategy (mutable): `MANUAL_CPT` or `MAX_CONVERSIONS`. Defaults to `MANUAL_CPT`. `MAX_CONVERSIONS` requires Search Results supply and `target_cpa_amount`.
+- `billing_event` (String) Billing event (immutable). Only `TAPS` is supported; defaults to `TAPS` when omitted.
+- `budget_amount` (String) Lifetime campaign budget amount as a decimal string (create-only). Changing this after create returns an error; create a new appleads_campaign instead. Never use floating point.
+- `budget_currency` (String) Currency code for budget_amount (e.g. USD; create-only with budget_amount). Changing this after create returns an error; create a new appleads_campaign instead.
 - `budget_orders` (List of String) Budget order identifiers associated with the campaign (mutable).
 - `daily_budget_amount` (String) Daily budget amount as a decimal string (mutable).
 - `daily_budget_currency` (String) Currency code for daily_budget_amount (e.g. USD).
 - `end_time` (String) Campaign end time in ISO-8601 format (mutable).
+- `start_time` (String) Campaign start time in ISO-8601 format. Use millisecond precision on create, e.g. `2026-01-01T00:00:00.000`. When omitted, Apple assigns the start time.
 - `status` (String) User-set campaign status: `ENABLED` or `PAUSED` (mutable).
-- `supply_sources` (List of String) Supply sources such as `APPSTORE_SEARCH_RESULTS` (immutable). Order is not significant; Apple may return a different order and the provider keeps the configured order when the set is unchanged.
+- `supply_sources` (List of String) Supply sources (immutable). `SEARCH` requires `APPSTORE_SEARCH_RESULTS`. `DISPLAY` requires one of `APPSTORE_TODAY_TAB`, `APPSTORE_SEARCH_TAB`, or `APPSTORE_PRODUCT_PAGES_BROWSE`. Order is not significant; Apple may return a different order and the provider keeps the configured order when the set is unchanged.
+- `target_cpa_amount` (String) Target CPA amount as a decimal string (mutable). Required when `bidding_strategy` is `MAX_CONVERSIONS`. Never use floating point.
+- `target_cpa_currency` (String) Currency code for target_cpa_amount (e.g. USD).
 
 ### Read-Only
 
 - `display_status` (String) Display status reported by Apple Ads.
 - `id` (String) Campaign identifier assigned by Apple Ads.
 - `modification_time` (String) Last modification timestamp from Apple Ads.
+- `payment_model` (String) Payment model inherited from the organization (e.g. `PAYG`). Read-only; not writable.
 - `serving_status` (String) Effective serving status reported by Apple Ads.
+
+## Import
+
+Import is supported using the following syntax:
+
+The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/commands/import) can be used, for example:
+
+```shell
+terraform import appleads_campaign.search_manual 1234567890
+```

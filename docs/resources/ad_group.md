@@ -8,6 +8,8 @@ description: |-
   Mutable: name, status, default_bid_amount/default_bid_currency, cpa_goal_amount/cpa_goal_currency, automated_keywords_opt_in (Search Match), start_time, end_time, targeting_dimensions.
   Computed: id, serving_status, display_status, modification_time.
   City and other audience targeting is targeting_dimensions (Apple targetingDimensions). Geo targeting only works on single-country campaigns; look up locality IDs with appleads_geolocations.
+  Maximize Conversions auto-created ad groups
+  Maximize Conversions campaigns may receive an Apple-created Automated Ad Group outside Terraform state. Import that group as a normal appleads_ad_group using campaign_id/ad_group_id or bare ad_group_id — do not invent a separate resource type. Under Max Conversions, keyword and default_bid_amount behavior is driven by Apple's auto-bidder / campaign target_cpa_amount; see the campaign resource docs.
 ---
 
 # appleads_ad_group (Resource)
@@ -21,6 +23,10 @@ Manages an Apple Ads ad group under a campaign.
 **Computed:** `id`, `serving_status`, `display_status`, `modification_time`.
 
 City and other audience targeting is `targeting_dimensions` (Apple `targetingDimensions`). Geo targeting only works on single-country campaigns; look up locality IDs with `appleads_geolocations`.
+
+## Maximize Conversions auto-created ad groups
+
+Maximize Conversions campaigns may receive an Apple-created Automated Ad Group outside Terraform state. Import that group as a normal `appleads_ad_group` using `campaign_id/ad_group_id` or bare `ad_group_id` — do not invent a separate resource type. Under Max Conversions, keyword and `default_bid_amount` behavior is driven by Apple's auto-bidder / campaign `target_cpa_amount`; see the campaign resource docs.
 
 ## Example Usage
 
@@ -200,3 +206,21 @@ Required:
 Required:
 
 - `included` (List of String) Apple criteria IDs to include.
+
+## Import
+
+Import is supported using the following syntax:
+
+The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/commands/import) can be used, for example:
+
+```shell
+# Preferred when campaign id is known:
+terraform import appleads_ad_group.main 1234567890/9876543210
+
+# Bare ad group id (provider resolves campaign via find):
+terraform import appleads_ad_group.main 9876543210
+
+# Maximize Conversions (MAX_CONVERSIONS): after campaign create, list Apple's
+# auto-created Automated Ad Group, then import it with one of the formats above.
+# There is no separate automated-ad-group resource type.
+```

@@ -131,10 +131,3 @@ func (d *adReportDataSource) Read(ctx context.Context, req datasource.ReadReques
 	}
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }
-
-func stringOrNull(v string) types.String {
-	if v == "" {
-		return types.StringNull()
-	}
-	return types.StringValue(v)
-}
