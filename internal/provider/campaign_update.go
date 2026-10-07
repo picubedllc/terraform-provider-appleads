@@ -27,6 +27,15 @@ func detectImmutableCampaignChanges(ctx context.Context, state, plan campaignMod
 	if !stringAttrEqual(state.AdChannelType, plan.AdChannelType) {
 		changes = append(changes, immutableCampaignFieldChange{Field: "ad_channel_type"})
 	}
+	if !stringAttrEqual(state.BillingEvent, plan.BillingEvent) {
+		changes = append(changes, immutableCampaignFieldChange{Field: "billing_event"})
+	}
+	if !stringAttrEqual(state.BudgetAmount, plan.BudgetAmount) {
+		changes = append(changes, immutableCampaignFieldChange{Field: "budget_amount"})
+	}
+	if !stringAttrEqual(state.BudgetCurrency, plan.BudgetCurrency) {
+		changes = append(changes, immutableCampaignFieldChange{Field: "budget_currency"})
+	}
 	if !listAttrSetEqual(ctx, state.SupplySources, plan.SupplySources) {
 		changes = append(changes, immutableCampaignFieldChange{Field: "supply_sources"})
 	}
@@ -86,15 +95,19 @@ func campaignUpdateFromPlan(ctx context.Context, state, plan campaignModel) (*cl
 	if !plan.Status.IsNull() && !plan.Status.IsUnknown() {
 		upd.Status = plan.Status.ValueString()
 	}
-	budget, d := moneyFromStrings(plan.BudgetAmount, plan.BudgetCurrency)
-	diags.Append(d...)
-	upd.BudgetAmount = budget
+	// budget_amount / budget_currency are create-only; never send on update.
 	daily, d := moneyFromStrings(plan.DailyBudgetAmount, plan.DailyBudgetCurrency)
 	diags.Append(d...)
 	upd.DailyBudgetAmount = daily
+	targetCpa, d := moneyFromStrings(plan.TargetCpaAmount, plan.TargetCpaCurrency)
+	diags.Append(d...)
+	upd.TargetCpa = targetCpa
 	orders, d := int64ListFromStrings(ctx, plan.BudgetOrders)
 	diags.Append(d...)
 	upd.BudgetOrders = orders
+	if !plan.BiddingStrategy.IsNull() && !plan.BiddingStrategy.IsUnknown() && plan.BiddingStrategy.ValueString() != "" {
+		upd.BiddingStrategy = plan.BiddingStrategy.ValueString()
+	}
 	if !plan.EndTime.IsNull() && !plan.EndTime.IsUnknown() {
 		upd.EndTime = plan.EndTime.ValueString()
 	}

@@ -217,6 +217,12 @@ func (c *Client) GetAdGroup(ctx context.Context, campaignID, adGroupID int64) (*
 	return &env.Data, nil
 }
 
+// ListAdGroups fetches one page of ad groups for a campaign (GET /campaigns/{id}/adgroups).
+func (c *Client) ListAdGroups(ctx context.Context, campaignID int64, page PageParams) (*PageResult[AdGroup], error) {
+	path := fmt.Sprintf("campaigns/%d/adgroups", campaignID)
+	return FetchPage[AdGroup](ctx, c, http.MethodGet, path, page, nil)
+}
+
 func (c *Client) UpdateAdGroup(ctx context.Context, campaignID, adGroupID int64, in *AdGroupUpdate) (*AdGroup, error) {
 	if in == nil {
 		return nil, fmt.Errorf("ad group update payload is required")

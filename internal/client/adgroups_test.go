@@ -503,3 +503,35 @@ func TestUpdateAdGroup_OmitsTargetingWhenUnset(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestListAdGroups(t *testing.T) {
+	t.Parallel()
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet || r.URL.Path != "/campaigns/10/adgroups" {
+			t.Fatalf("unexpected %s %s", r.Method, r.URL.Path)
+		}
+		if r.URL.Query().Get("limit") != "50" {
+			t.Fatalf("limit = %q", r.URL.Query().Get("limit"))
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"data": []map[string]any{
+				{"id": 1, "campaignId": 10, "name": "Auto", "automatedKeywordsOptIn": true},
+			},
+			"pagination": map[string]any{"totalResults": 1, "startIndex": 0, "itemsPerPage": 50},
+		})
+	}))
+	t.Cleanup(srv.Close)
+
+	c, err := New(WithBaseURL(srv.URL))
+	if err != nil {
+		t.Fatal(err)
+	}
+	page, err := c.ListAdGroups(context.Background(), 10, PageParams{Limit: 50, Offset: 0})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(page.Data) != 1 || page.Data[0].Name != "Auto" || !page.Data[0].AutomatedKeywordsOptIn {
+		t.Fatalf("page = %#v", page)
+	}
+}
