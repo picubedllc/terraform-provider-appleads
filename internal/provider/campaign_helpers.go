@@ -83,6 +83,8 @@ func campaignCreateFromPlan(ctx context.Context, plan campaignModel) (*client.Ca
 	diags.Append(d...)
 	daily, d := moneyFromStrings(plan.DailyBudgetAmount, plan.DailyBudgetCurrency)
 	diags.Append(d...)
+	targetCpa, d := moneyFromStrings(plan.TargetCpaAmount, plan.TargetCpaCurrency)
+	diags.Append(d...)
 	if budget != nil {
 		if amt, err := decimal.NewFromString(budget.Amount); err == nil && !amt.IsPositive() {
 			diags.AddError("Invalid budget_amount", "budget_amount must be greater than zero")
@@ -91,6 +93,11 @@ func campaignCreateFromPlan(ctx context.Context, plan campaignModel) (*client.Ca
 	if daily != nil {
 		if amt, err := decimal.NewFromString(daily.Amount); err == nil && !amt.IsPositive() {
 			diags.AddError("Invalid daily_budget_amount", "daily_budget_amount must be greater than zero")
+		}
+	}
+	if targetCpa != nil {
+		if amt, err := decimal.NewFromString(targetCpa.Amount); err == nil && !amt.IsPositive() {
+			diags.AddError("Invalid target_cpa_amount", "target_cpa_amount must be greater than zero")
 		}
 	}
 
@@ -108,21 +115,37 @@ func campaignCreateFromPlan(ctx context.Context, plan campaignModel) (*client.Ca
 		CountriesOrRegions: countries,
 		BudgetAmount:       budget,
 		DailyBudgetAmount:  daily,
+		TargetCpa:          targetCpa,
 		SupplySources:      supply,
 		BudgetOrders:       orders,
-		// SEARCH create defaults proven against API v5 (Apple's example + live POST).
-		AdChannelType:   "SEARCH",
-		BillingEvent:    "TAPS",
-		BiddingStrategy: "MANUAL_CPT",
 	}
 	if !plan.Status.IsNull() && !plan.Status.IsUnknown() && plan.Status.ValueString() != "" {
 		in.Status = plan.Status.ValueString()
 	}
+
+	// Defaults apply only when omitted. When the plan sets channel or supply,
+	// do not overwrite with Search Results values.
 	if !plan.AdChannelType.IsNull() && !plan.AdChannelType.IsUnknown() && plan.AdChannelType.ValueString() != "" {
 		in.AdChannelType = plan.AdChannelType.ValueString()
+	} else {
+		in.AdChannelType = client.AdChannelTypeSearch
 	}
 	if len(in.SupplySources) == 0 {
-		in.SupplySources = []string{"APPSTORE_SEARCH_RESULTS"}
+		in.SupplySources = []string{client.SupplySourceSearchResults}
+	}
+	if !plan.BillingEvent.IsNull() && !plan.BillingEvent.IsUnknown() && plan.BillingEvent.ValueString() != "" {
+		in.BillingEvent = plan.BillingEvent.ValueString()
+	} else {
+		in.BillingEvent = client.BillingEventTaps
+	}
+	if !plan.BiddingStrategy.IsNull() && !plan.BiddingStrategy.IsUnknown() && plan.BiddingStrategy.ValueString() != "" {
+		in.BiddingStrategy = plan.BiddingStrategy.ValueString()
+	} else {
+		in.BiddingStrategy = client.BiddingStrategyManualCPT
+	}
+
+	if !plan.StartTime.IsNull() && !plan.StartTime.IsUnknown() && plan.StartTime.ValueString() != "" {
+		in.StartTime = plan.StartTime.ValueString()
 	}
 	if !plan.EndTime.IsNull() && !plan.EndTime.IsUnknown() {
 		in.EndTime = plan.EndTime.ValueString()
@@ -138,9 +161,17 @@ func campaignModelFromClient(ctx context.Context, c *client.Campaign) (campaignM
 	m.AdamID = types.StringValue(strconv.FormatInt(c.AdamID, 10))
 	m.Status = types.StringValue(c.Status)
 	m.AdChannelType = types.StringValue(c.AdChannelType)
+	m.BillingEvent = types.StringValue(c.BillingEvent)
+	m.BiddingStrategy = types.StringValue(c.BiddingStrategy)
+	m.PaymentModel = types.StringValue(c.PaymentModel)
 	m.ServingStatus = types.StringValue(c.ServingStatus)
 	m.DisplayStatus = types.StringValue(c.DisplayStatus)
 	m.ModificationTime = types.StringValue(c.ModificationTime)
+	if c.StartTime != "" {
+		m.StartTime = types.StringValue(c.StartTime)
+	} else {
+		m.StartTime = types.StringNull()
+	}
 	if c.EndTime != "" {
 		m.EndTime = types.StringValue(c.EndTime)
 	} else {
@@ -169,6 +200,13 @@ func campaignModelFromClient(ctx context.Context, c *client.Campaign) (campaignM
 		m.DailyBudgetAmount = types.StringNull()
 		m.DailyBudgetCurrency = types.StringNull()
 	}
+	if c.TargetCpa != nil {
+		m.TargetCpaAmount = types.StringValue(c.TargetCpa.Amount)
+		m.TargetCpaCurrency = types.StringValue(c.TargetCpa.Currency)
+	} else {
+		m.TargetCpaAmount = types.StringNull()
+		m.TargetCpaCurrency = types.StringNull()
+	}
 
 	if len(c.BudgetOrders) == 0 {
 		m.BudgetOrders = types.ListNull(types.StringType)
@@ -185,12 +223,27 @@ func campaignModelFromClient(ctx context.Context, c *client.Campaign) (campaignM
 	return m, diags
 }
 
-// overlayCampaignReported keeps configured money scale and list order when
-// Apple only reformats those values, so Create/Read/Update do not fail
-// Terraform's after-apply consistency check.
+// overlayCampaignReported keeps configured money scale, list order, and
+// start_time when Apple only reformats those values, so Create/Read/Update
+// do not fail Terraform's after-apply consistency check.
 func overlayCampaignReported(ctx context.Context, configured, reported campaignModel) (campaignModel, diag.Diagnostics) {
 	reported = overlayCampaignMoney(configured, reported)
+	reported = overlayCampaignStartTime(configured, reported)
 	return overlayCampaignLists(ctx, configured, reported)
+}
+
+// overlayCampaignStartTime keeps the configured start_time string when the
+// plan set one, so millisecond-precision create values survive Apple's
+// response formatting.
+func overlayCampaignStartTime(configured, reported campaignModel) campaignModel {
+	if configured.StartTime.IsNull() || configured.StartTime.IsUnknown() || configured.StartTime.ValueString() == "" {
+		return reported
+	}
+	if reported.StartTime.IsNull() || reported.StartTime.IsUnknown() {
+		return reported
+	}
+	reported.StartTime = configured.StartTime
+	return reported
 }
 
 // overlayCampaignMoney keeps configured decimal strings when Apple normalizes
@@ -200,6 +253,8 @@ func overlayCampaignMoney(configured, reported campaignModel) campaignModel {
 	reported.BudgetCurrency = preferAmount(configured.BudgetCurrency, reported.BudgetCurrency)
 	reported.DailyBudgetAmount = preferAmount(configured.DailyBudgetAmount, reported.DailyBudgetAmount)
 	reported.DailyBudgetCurrency = preferAmount(configured.DailyBudgetCurrency, reported.DailyBudgetCurrency)
+	reported.TargetCpaAmount = preferAmount(configured.TargetCpaAmount, reported.TargetCpaAmount)
+	reported.TargetCpaCurrency = preferAmount(configured.TargetCpaCurrency, reported.TargetCpaCurrency)
 	return reported
 }
 

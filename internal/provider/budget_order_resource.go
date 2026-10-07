@@ -412,13 +412,6 @@ func budgetOrderModelFromInfo(ctx context.Context, info *client.BudgetOrderInfo)
 	return m, diags
 }
 
-func stringOrNull(s string) types.String {
-	if s == "" {
-		return types.StringNull()
-	}
-	return types.StringValue(s)
-}
-
 func overlayBudgetOrderReported(ctx context.Context, configured, reported budgetOrderModel) (budgetOrderModel, diag.Diagnostics) {
 	var diags diag.Diagnostics
 	reported.BudgetAmount = preferAmount(configured.BudgetAmount, reported.BudgetAmount)

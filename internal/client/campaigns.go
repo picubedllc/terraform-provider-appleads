@@ -3,27 +3,58 @@
 
 package client
 
+// Bidding strategy values for Campaign.BiddingStrategy (API v5).
+const (
+	BiddingStrategyManualCPT      = "MANUAL_CPT"
+	BiddingStrategyMaxConversions = "MAX_CONVERSIONS"
+)
+
+// Ad channel type values for Campaign.AdChannelType (API v5).
+const (
+	AdChannelTypeSearch  = "SEARCH"
+	AdChannelTypeDisplay = "DISPLAY"
+)
+
+// Supply source values for Campaign.SupplySources (API v5).
+const (
+	SupplySourceSearchResults      = "APPSTORE_SEARCH_RESULTS"
+	SupplySourceTodayTab           = "APPSTORE_TODAY_TAB"
+	SupplySourceSearchTab          = "APPSTORE_SEARCH_TAB"
+	SupplySourceProductPagesBrowse = "APPSTORE_PRODUCT_PAGES_BROWSE"
+)
+
+// Billing event values for Campaign.BillingEvent (API v5).
+const (
+	BillingEventTaps = "TAPS"
+)
+
 // Campaign is an Apple Ads campaign (API v5).
 //
-// Mutability (Terraform classification — confirmed against Apple Ads Campaign
-// Management API v5 update semantics):
+// Mutability (Terraform classification — Apple Ads Campaign Management API v5;
+// budgetAmount treated as create-only per Apple docs / safe default from live probes):
 //
-//	Immutable (cannot change in place; Terraform must NOT RequiresReplace):
+//	Immutable / create-only (cannot change in place; Terraform must NOT RequiresReplace):
 //	  - AdamID
 //	  - CountriesOrRegions
 //	  - SupplySources
 //	  - AdChannelType
+//	  - BillingEvent (tied to channel/supply at create)
+//	  - BudgetAmount (lifetime total; set on create only)
 //
 //	Mutable (in-place update supported):
 //	  - Name
 //	  - Status
-//	  - BudgetAmount
 //	  - DailyBudgetAmount
 //	  - BudgetOrders
 //	  - EndTime
+//	  - BiddingStrategy
+//	  - TargetCpa (required when BiddingStrategy is MAX_CONVERSIONS)
+//
+//	Create optional / probe-dependent:
+//	  - StartTime — settable on create; update support is probe-dependent
 //
 //	Computed / read-only from Apple:
-//	  - ID, OrgID, ServingStatus, DisplayStatus, ServingStateReasons,
+//	  - ID, OrgID, PaymentModel, ServingStatus, DisplayStatus, ServingStateReasons,
 //	    ModificationTime, Deleted, CountryOrRegionServingStateReasons
 type Campaign struct {
 	ID                                 int64               `json:"id,omitempty"`
@@ -42,6 +73,7 @@ type Campaign struct {
 	AdChannelType                      string              `json:"adChannelType,omitempty"`
 	BillingEvent                       string              `json:"billingEvent,omitempty"`
 	BiddingStrategy                    string              `json:"biddingStrategy,omitempty"`
+	TargetCpa                          *Money              `json:"targetCpa,omitempty"`
 	BudgetOrders                       []int64             `json:"budgetOrders,omitempty"`
 	StartTime                          string              `json:"startTime,omitempty"`
 	EndTime                            string              `json:"endTime,omitempty"`
@@ -65,6 +97,7 @@ type CampaignCreate struct {
 	AdChannelType      string   `json:"adChannelType,omitempty"`
 	BillingEvent       string   `json:"billingEvent,omitempty"`
 	BiddingStrategy    string   `json:"biddingStrategy,omitempty"`
+	TargetCpa          *Money   `json:"targetCpa,omitempty"`
 	BudgetOrders       []int64  `json:"budgetOrders,omitempty"`
 	StartTime          string   `json:"startTime,omitempty"`
 	EndTime            string   `json:"endTime,omitempty"`
@@ -72,12 +105,18 @@ type CampaignCreate struct {
 
 // CampaignUpdate is the mutable subset for PUT /campaigns/{id}.
 // Wrapped as {"campaign": {...}} by UpdateCampaign.
+//
+// BudgetAmount is intentionally absent: Apple documents lifetime budget as
+// create-only. Terraform never sends budgetAmount on update. Live probes that
+// still need to exercise a rejected update may POST a raw JSON body.
 type CampaignUpdate struct {
 	Name              string  `json:"name,omitempty"`
 	Status            string  `json:"status,omitempty"`
-	BudgetAmount      *Money  `json:"budgetAmount,omitempty"`
 	DailyBudgetAmount *Money  `json:"dailyBudgetAmount,omitempty"`
 	BudgetOrders      []int64 `json:"budgetOrders,omitempty"`
+	BiddingStrategy   string  `json:"biddingStrategy,omitempty"`
+	TargetCpa         *Money  `json:"targetCpa,omitempty"`
+	StartTime         string  `json:"startTime,omitempty"`
 	EndTime           string  `json:"endTime,omitempty"`
 	ClearEndTime      bool    `json:"-"` // sentinel handled by marshal helper when needed
 }

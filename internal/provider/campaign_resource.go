@@ -25,8 +25,9 @@ import (
 var moneyAmountRegexp = regexp.MustCompile(`^(?:0|[1-9]\d*)(?:\.\d+)?$`)
 
 var (
-	_ resource.Resource                = &campaignResource{}
-	_ resource.ResourceWithImportState = &campaignResource{}
+	_ resource.Resource                   = &campaignResource{}
+	_ resource.ResourceWithImportState    = &campaignResource{}
+	_ resource.ResourceWithValidateConfig = &campaignResource{}
 )
 
 func NewCampaignResource() resource.Resource {
@@ -42,17 +43,23 @@ type campaignResource struct {
 //
 // Field mutability (must stay in sync with client.Campaign comments):
 //
-// Immutable — never use RequiresReplace; Update returns a diagnostic instead:
+// Immutable / create-only — never use RequiresReplace; Update returns a diagnostic instead:
 //   - adam_id
 //   - countries_or_regions
 //   - supply_sources
 //   - ad_channel_type
+//   - billing_event
+//   - budget_amount, budget_currency (lifetime total; create-only)
 //
 // Mutable — in-place Update:
-//   - name, status, budget_amount, daily_budget_amount, budget_orders, end_time
+//   - name, status, daily_budget_amount, daily_budget_currency, budget_orders, end_time,
+//     bidding_strategy, target_cpa_amount, target_cpa_currency
+//
+// Create optional / computed:
+//   - start_time (passed on create; Apple may assign when omitted)
 //
 // Computed:
-//   - id, serving_status, display_status, modification_time
+//   - id, payment_model, serving_status, display_status, modification_time
 type campaignModel struct {
 	ID                  types.String `tfsdk:"id"`
 	Name                types.String `tfsdk:"name"`
@@ -61,12 +68,18 @@ type campaignModel struct {
 	CountriesOrRegions  types.List   `tfsdk:"countries_or_regions"`
 	SupplySources       types.List   `tfsdk:"supply_sources"`
 	AdChannelType       types.String `tfsdk:"ad_channel_type"`
+	BillingEvent        types.String `tfsdk:"billing_event"`
+	BiddingStrategy     types.String `tfsdk:"bidding_strategy"`
+	TargetCpaAmount     types.String `tfsdk:"target_cpa_amount"`
+	TargetCpaCurrency   types.String `tfsdk:"target_cpa_currency"`
 	BudgetAmount        types.String `tfsdk:"budget_amount"`
 	BudgetCurrency      types.String `tfsdk:"budget_currency"`
 	DailyBudgetAmount   types.String `tfsdk:"daily_budget_amount"`
 	DailyBudgetCurrency types.String `tfsdk:"daily_budget_currency"`
 	BudgetOrders        types.List   `tfsdk:"budget_orders"`
+	StartTime           types.String `tfsdk:"start_time"`
 	EndTime             types.String `tfsdk:"end_time"`
+	PaymentModel        types.String `tfsdk:"payment_model"`
 	ServingStatus       types.String `tfsdk:"serving_status"`
 	DisplayStatus       types.String `tfsdk:"display_status"`
 	ModificationTime    types.String `tfsdk:"modification_time"`
@@ -79,7 +92,8 @@ func (r *campaignResource) Metadata(ctx context.Context, req resource.MetadataRe
 func (r *campaignResource) Schema(ctx context.Context, req resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		MarkdownDescription: "Manages an Apple Ads campaign. Immutable fields never trigger automatic replacement; " +
-			"changing them returns an error diagnostic so historical campaign identity is preserved.",
+			"changing them returns an error diagnostic so historical campaign identity is preserved." +
+			campaignComboMarkdown,
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
 				Computed:            true,
@@ -104,21 +118,6 @@ func (r *campaignResource) Schema(ctx context.Context, req resource.SchemaReques
 				Validators: []validator.String{
 					stringvalidator.OneOf("ENABLED", "PAUSED"),
 				},
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
-			},
-			"budget_amount": schema.StringAttribute{
-				Optional:            true,
-				MarkdownDescription: "Lifetime campaign budget amount as a decimal string (mutable). Never use floating point.",
-				Validators: []validator.String{
-					stringvalidator.RegexMatches(moneyAmountRegexp, "budget_amount must be a positive decimal string (e.g. \"100.00\")"),
-				},
-			},
-			"budget_currency": schema.StringAttribute{
-				Optional:            true,
-				Computed:            true,
-				MarkdownDescription: "Currency code for budget_amount (e.g. USD).",
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.UseStateForUnknown(),
 				},
@@ -148,7 +147,24 @@ func (r *campaignResource) Schema(ctx context.Context, req resource.SchemaReques
 				MarkdownDescription: "Campaign end time in ISO-8601 format (mutable).",
 			},
 
-			// Immutable. Intentionally no RequiresReplace plan modifiers.
+			// Immutable / create-only. Intentionally no RequiresReplace plan modifiers.
+			"budget_amount": schema.StringAttribute{
+				Optional: true,
+				MarkdownDescription: "Lifetime campaign budget amount as a decimal string (create-only). " +
+					"Changing this after create returns an error; create a new appleads_campaign instead. Never use floating point.",
+				Validators: []validator.String{
+					stringvalidator.RegexMatches(moneyAmountRegexp, "budget_amount must be a positive decimal string (e.g. \"100.00\")"),
+				},
+			},
+			"budget_currency": schema.StringAttribute{
+				Optional: true,
+				Computed: true,
+				MarkdownDescription: "Currency code for budget_amount (e.g. USD; create-only with budget_amount). " +
+					"Changing this after create returns an error; create a new appleads_campaign instead.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
+			},
 			"adam_id": schema.StringAttribute{
 				Required:            true,
 				MarkdownDescription: "Adam ID of the promoted app (immutable). Changing this after create returns an error; create a new appleads_campaign instead.",
@@ -168,7 +184,10 @@ func (r *campaignResource) Schema(ctx context.Context, req resource.SchemaReques
 				Optional:            true,
 				Computed:            true,
 				ElementType:         types.StringType,
-				MarkdownDescription: "Supply sources such as `APPSTORE_SEARCH_RESULTS` (immutable). Order is not significant; Apple may return a different order and the provider keeps the configured order when the set is unchanged.",
+				MarkdownDescription: "Supply sources (immutable). `SEARCH` requires `APPSTORE_SEARCH_RESULTS`. `DISPLAY` requires one of `APPSTORE_TODAY_TAB`, `APPSTORE_SEARCH_TAB`, or `APPSTORE_PRODUCT_PAGES_BROWSE`. Order is not significant; Apple may return a different order and the provider keeps the configured order when the set is unchanged.",
+				Validators: []validator.List{
+					listvalidator.ValueStringsAre(stringvalidator.OneOf(campaignSupplySourceValues()...)),
+				},
 				PlanModifiers: []planmodifier.List{
 					listplanmodifier.UseStateForUnknown(),
 				},
@@ -176,13 +195,65 @@ func (r *campaignResource) Schema(ctx context.Context, req resource.SchemaReques
 			"ad_channel_type": schema.StringAttribute{
 				Optional:            true,
 				Computed:            true,
-				MarkdownDescription: "Ad channel type such as `SEARCH` (immutable).",
+				MarkdownDescription: "Ad channel type: `SEARCH` or `DISPLAY` (immutable). Defaults to `SEARCH` when omitted. Must match supply_sources and bidding_strategy (see resource docs matrix).",
+				Validators: []validator.String{
+					stringvalidator.OneOf(client.AdChannelTypeSearch, client.AdChannelTypeDisplay),
+				},
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
+			},
+			"billing_event": schema.StringAttribute{
+				Optional:            true,
+				Computed:            true,
+				MarkdownDescription: "Billing event (immutable). Only `TAPS` is supported; defaults to `TAPS` when omitted.",
+				Validators: []validator.String{
+					stringvalidator.OneOf(client.BillingEventTaps),
+				},
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
+			},
+			"bidding_strategy": schema.StringAttribute{
+				Optional:            true,
+				Computed:            true,
+				MarkdownDescription: "Bidding strategy (mutable): `MANUAL_CPT` or `MAX_CONVERSIONS`. Defaults to `MANUAL_CPT`. `MAX_CONVERSIONS` requires Search Results supply and `target_cpa_amount`.",
+				Validators: []validator.String{
+					stringvalidator.OneOf(client.BiddingStrategyManualCPT, client.BiddingStrategyMaxConversions),
+				},
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
+			},
+			"target_cpa_amount": schema.StringAttribute{
+				Optional:            true,
+				MarkdownDescription: "Target CPA amount as a decimal string (mutable). Required when `bidding_strategy` is `MAX_CONVERSIONS`. Never use floating point.",
+				Validators: []validator.String{
+					stringvalidator.RegexMatches(moneyAmountRegexp, "target_cpa_amount must be a positive decimal string (e.g. \"10.00\")"),
+				},
+			},
+			"target_cpa_currency": schema.StringAttribute{
+				Optional:            true,
+				Computed:            true,
+				MarkdownDescription: "Currency code for target_cpa_amount (e.g. USD).",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
+			},
+			"start_time": schema.StringAttribute{
+				Optional:            true,
+				Computed:            true,
+				MarkdownDescription: "Campaign start time in ISO-8601 format. Use millisecond precision on create, e.g. `2026-01-01T00:00:00.000`. When omitted, Apple assigns the start time.",
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.UseStateForUnknown(),
 				},
 			},
 
 			// Computed read-only
+			"payment_model": schema.StringAttribute{
+				Computed:            true,
+				MarkdownDescription: "Payment model inherited from the organization (e.g. `PAYG`). Read-only; not writable.",
+			},
 			"serving_status": schema.StringAttribute{
 				Computed:            true,
 				MarkdownDescription: "Effective serving status reported by Apple Ads.",
