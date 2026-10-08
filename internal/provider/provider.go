@@ -202,6 +202,8 @@ func (p *AppleAdsProvider) DataSources(ctx context.Context) []func() datasource.
 		NewCampaignReportDataSource,
 		NewAdGroupReportDataSource,
 		NewKeywordReportDataSource,
+		NewCampaignKeywordReportDataSource,
+		NewAdReportDataSource,
 		NewSearchTermReportDataSource,
 		NewGeolocationsDataSource,
 		NewProductPagesDataSource,
