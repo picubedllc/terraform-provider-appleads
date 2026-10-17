@@ -42,13 +42,19 @@ func (c *Client) GetCampaign(ctx context.Context, id int64) (*Campaign, error) {
 
 // UpdateCampaign updates mutable campaign fields via PUT /campaigns/{id}.
 // Request body is wrapped as {"campaign":{...}} per Apple Ads API v5.
+// When in.ClearGeoTargetingOnCountryOrRegionChange is set (required to change
+// countriesOrRegions), the flag is sent on the envelope, not inside campaign.
 func (c *Client) UpdateCampaign(ctx context.Context, id int64, in *CampaignUpdate) (*Campaign, error) {
 	if in == nil {
 		return nil, fmt.Errorf("campaign update payload is required")
 	}
 	var env Response[Campaign]
 	path := fmt.Sprintf("campaigns/%d", id)
-	if err := c.DoJSON(ctx, http.MethodPut, path, campaignUpdateEnvelope{Campaign: in}, &env); err != nil {
+	body := campaignUpdateEnvelope{Campaign: in}
+	if in.ClearGeoTargetingOnCountryOrRegionChange {
+		body.ClearGeoTargetingOnCountryOrRegionChange = true
+	}
+	if err := c.DoJSON(ctx, http.MethodPut, path, body, &env); err != nil {
 		return nil, err
 	}
 	return &env.Data, nil
