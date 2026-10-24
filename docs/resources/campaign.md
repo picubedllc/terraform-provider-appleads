@@ -59,10 +59,10 @@ Recommended workflow after create:
 ```terraform
 # Manages an Apple Ads campaign.
 #
-# Immutable / create-only fields (adam_id, countries_or_regions, supply_sources,
-# ad_channel_type, billing_event, budget_amount, budget_currency) never trigger
-# automatic replacement — changing them returns an error so historical campaign
-# identity is preserved. daily_budget_amount remains mutable in place.
+# Immutable / create-only fields (adam_id, supply_sources, ad_channel_type,
+# billing_event, budget_amount, budget_currency) never trigger automatic
+# replacement — changing them returns an error so historical campaign identity
+# is preserved. countries_or_regions and daily_budget_amount remain mutable.
 #
 # Manual CPT (default when bidding_strategy is omitted):
 
@@ -130,7 +130,7 @@ resource "appleads_campaign" "display" {
 ### Required
 
 - `adam_id` (String) Adam ID of the promoted app (immutable). Changing this after create returns an error; create a new appleads_campaign instead.
-- `countries_or_regions` (List of String) Country or region codes targeted by the campaign (immutable). Order is not significant; Apple may return a different order and the provider keeps the configured order when the set is unchanged. Changing membership after create returns an error; create a new appleads_campaign instead.
+- `countries_or_regions` (List of String) Country or region codes targeted by the campaign (mutable). Order is not significant; Apple may return a different order and the provider keeps the configured order when the set is unchanged. Membership changes (add or drop) are applied in place via PUT `/campaigns/{id}` with `clearGeoTargetingOnCountryOrRegionChange=true`, which clears ad-group geo targeting (`locality` / `admin_area` / `country`). At least one country is required. The promoted app must remain available in the remaining App Store territories.
 - `name` (String) Campaign name (mutable).
 
 ### Optional
