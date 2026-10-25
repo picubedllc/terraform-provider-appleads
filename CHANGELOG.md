@@ -8,6 +8,11 @@ FEATURES:
 * Add plan-time validators for `appleads_campaign` channel / supply / billing / bidding combinations, plus optional `bidding_strategy` (`MANUAL_CPT` | `MAX_CONVERSIONS`). Docs describe the matrix and that Display delivery still needs creatives/ads.
 * Add read-only `appleads_campaign_keyword_report` and `appleads_ad_report` data sources for campaign-scoped keyword and ad performance (`POST /reports/campaigns/{id}/keywords` and `POST /reports/campaigns/{id}/ads`).
 
+BUG FIXES:
+
+* Allow in-place updates to `appleads_campaign.countries_or_regions`. Apple Ads Campaign Management API v5 supports changing `countriesOrRegions` on PUT `/campaigns/{id}` with `clearGeoTargetingOnCountryOrRegionChange=true`. The provider previously treated the attribute as immutable and rejected membership changes (for example dropping a country from a multi-country campaign).
+
+
 ## 0.3.4
 
 BUG FIXES:

@@ -24,7 +24,8 @@ resource "appleads_ad_group" "today_tab" {
 }
 
 # City targeting is ad-group targeting_dimensions.locality (Apple Ads
-# targetingDimensions). Campaign countries_or_regions stays US (immutable).
+# targetingDimensions). Campaign countries_or_regions is country grain
+# (mutable in place). Geo targeting only works on single-country campaigns.
 # Look up IDs with data.appleads_geolocations; NYC locality is US|NY|New York.
 
 resource "appleads_ad_group" "nyc_brand" {

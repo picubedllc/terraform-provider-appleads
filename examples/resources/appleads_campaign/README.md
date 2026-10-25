@@ -30,6 +30,7 @@ valid with Max Conversions.
 terraform import appleads_campaign.search_manual 1234567890
 ```
 
-Immutable / create-only fields (`adam_id`, `countries_or_regions`, `supply_sources`,
-`ad_channel_type`, `billing_event`, `budget_amount`, `budget_currency`) cannot change
-in place. Create a new campaign resource instead of relying on Terraform replacement.
+Immutable / create-only fields (`adam_id`, `supply_sources`, `ad_channel_type`,
+`billing_event`, `budget_amount`, `budget_currency`) cannot change in place.
+Create a new campaign resource instead of relying on Terraform replacement.
+`countries_or_regions` is mutable (membership changes clear ad-group geo targeting).
