@@ -8,9 +8,9 @@
 
 Manage [Apple Ads](https://ads.apple.com/) configuration as code with Terraform.
 
-This is an open-source project from [Pi Cubed](https://github.com/picubedllc). It provides a Terraform Plugin Framework provider for Apple Ads campaigns, ad groups, and keywords — with safety guardrails that protect historical campaign identity.
+The provider allows you to manage Apple Ads campaigns, ad groups, and keywords with safety guardrails that protect historical campaign identity.
 
-**Status: early development, not yet published** to the Terraform Registry.
+Provider in the Terraform Registry: [picubedllc/appleads](https://registry.terraform.io/providers/picubedllc/appleads/latest).
 
 ## Requirements
 
