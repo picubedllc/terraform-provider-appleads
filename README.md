@@ -1,5 +1,11 @@
 # Terraform Provider for Apple Ads
 
+[![Tests](https://github.com/picubedllc/terraform-provider-appleads/actions/workflows/test.yml/badge.svg)](https://github.com/picubedllc/terraform-provider-appleads/actions/workflows/test.yml)
+[![Live Integration](https://github.com/picubedllc/terraform-provider-appleads/actions/workflows/live-integration.yml/badge.svg)](https://github.com/picubedllc/terraform-provider-appleads/actions/workflows/live-integration.yml)
+[![Release](https://img.shields.io/github/v/release/picubedllc/terraform-provider-appleads)](https://github.com/picubedllc/terraform-provider-appleads/releases)
+[![Go](https://img.shields.io/github/go-mod/go-version/picubedllc/terraform-provider-appleads)](https://go.dev/)
+[![License](https://img.shields.io/github/license/picubedllc/terraform-provider-appleads)](./LICENSE)
+
 Manage [Apple Ads](https://ads.apple.com/) configuration as code with Terraform.
 
 This is an open-source project from [Pi Cubed](https://github.com/picubedllc). It provides a Terraform Plugin Framework provider for Apple Ads campaigns, ad groups, and keywords — with safety guardrails that protect historical campaign identity.
