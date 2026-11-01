@@ -71,7 +71,7 @@ func TestQueryPage_FiltersAndPagination(t *testing.T) {
 	}
 
 	page, err := v1.QueryPage[map[string]any](context.Background(), c, "campaigns/query", v1.QueryRequest{
-		Filters: []v1.QueryFilter{v1.EqualsFilter("id", 9)},
+		Filters:    []v1.QueryFilter{v1.EqualsFilter("id", 9)},
 		Pagination: &v1.QueryPagination{Offset: 0, PageSize: 100},
 	})
 	if err != nil {

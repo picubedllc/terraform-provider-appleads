@@ -29,9 +29,9 @@ type Pagination struct {
 
 // QueryRequest is the common /query body (filters, sorting, pagination, fields).
 type QueryRequest struct {
-	Fields     []string      `json:"fields,omitempty"`
-	Filters    []QueryFilter `json:"filters,omitempty"`
-	Sorting    []QuerySort   `json:"sorting,omitempty"`
+	Fields     []string         `json:"fields,omitempty"`
+	Filters    []QueryFilter    `json:"filters,omitempty"`
+	Sorting    []QuerySort      `json:"sorting,omitempty"`
 	Pagination *QueryPagination `json:"pagination,omitempty"`
 	Include    []string         `json:"include,omitempty"`
 }
