@@ -18,12 +18,13 @@ import (
 
 // Credential environment variables. Must match the provider schema docs.
 const (
-	EnvOrgID      = "APPLEADS_ORG_ID"
-	EnvClientID   = "APPLEADS_CLIENT_ID"
-	EnvTeamID     = "APPLEADS_TEAM_ID"
-	EnvKeyID      = "APPLEADS_KEY_ID"
-	EnvPrivateKey = "APPLEADS_PRIVATE_KEY"
-	EnvLiveTest   = "APPLEADS_LIVE_TEST"
+	EnvOrgID       = "APPLEADS_ORG_ID"
+	EnvAdAccountID = "APPLEADS_AD_ACCOUNT_ID"
+	EnvClientID    = "APPLEADS_CLIENT_ID"
+	EnvTeamID      = "APPLEADS_TEAM_ID"
+	EnvKeyID       = "APPLEADS_KEY_ID"
+	EnvPrivateKey  = "APPLEADS_PRIVATE_KEY"
+	EnvLiveTest    = "APPLEADS_LIVE_TEST"
 )
 
 // liveTestsEnabled reports whether tests that hit Apple's APIs should run.
@@ -46,7 +47,7 @@ func PreCheck(t *testing.T) {
 	}
 
 	var missing []string
-	for _, name := range []string{EnvOrgID, EnvClientID, EnvTeamID, EnvKeyID, EnvPrivateKey} {
+	for _, name := range []string{EnvOrgID, EnvAdAccountID, EnvClientID, EnvTeamID, EnvKeyID, EnvPrivateKey} {
 		if strings.TrimSpace(os.Getenv(name)) == "" {
 			missing = append(missing, name)
 		}

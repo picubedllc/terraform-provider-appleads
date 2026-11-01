@@ -60,6 +60,7 @@ func TestAccProvider_ConfigureFromEnvAndReadACL(t *testing.T) {
 		Schema: schemaResp.Schema,
 		Raw: tftypes.NewValue(schemaResp.Schema.Type().TerraformType(t.Context()), map[string]tftypes.Value{
 			"org_id":                  tftypes.NewValue(tftypes.String, nil),
+			"ad_account_id":           tftypes.NewValue(tftypes.String, nil),
 			"client_id":               tftypes.NewValue(tftypes.String, nil),
 			"team_id":                 tftypes.NewValue(tftypes.String, nil),
 			"key_id":                  tftypes.NewValue(tftypes.String, nil),
@@ -74,7 +75,7 @@ func TestAccProvider_ConfigureFromEnvAndReadACL(t *testing.T) {
 		t.Fatalf("configure diagnostics: %#v", resp.Diagnostics)
 	}
 	data, ok := resp.ResourceData.(*ProviderData)
-	if !ok || data == nil || data.Client == nil {
+	if !ok || data == nil || data.Client == nil || data.V1 == nil {
 		t.Fatalf("ResourceData = %#v", resp.ResourceData)
 	}
 
