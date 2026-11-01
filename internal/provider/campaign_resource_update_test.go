@@ -7,7 +7,6 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
-	"net/http/httptest"
 	"strings"
 	"testing"
 
@@ -219,16 +218,15 @@ func TestCampaignUpdateFromPlan_OmitsBudgetAmount(t *testing.T) {
 	if diags.HasError() {
 		t.Fatalf("%v", diags)
 	}
-	if upd.DailyBudgetAmount == nil || upd.DailyBudgetAmount.Amount != "15.00" {
-		t.Fatalf("dailyBudgetAmount = %#v", upd.DailyBudgetAmount)
+	if upd.DailyBudget == nil || upd.DailyBudget.Value == nil || upd.DailyBudget.Value.Amount != "15.00" {
+		t.Fatalf("dailyBudget = %#v", upd.DailyBudget)
 	}
-	// Reflect: CampaignUpdate must not expose BudgetAmount for Terraform updates.
 	raw, err := json.Marshal(upd)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if strings.Contains(string(raw), "budgetAmount") {
-		t.Fatalf("update JSON must omit budgetAmount, got %s", raw)
+	if strings.Contains(string(raw), "budgetAmount") || strings.Contains(string(raw), "500") {
+		t.Fatalf("update JSON must omit the lifetime budget, got %s", raw)
 	}
 }
 
@@ -247,11 +245,12 @@ func TestCampaignUpdateFromPlan_BiddingStrategyAndTargetCpa(t *testing.T) {
 	if diags.HasError() {
 		t.Fatalf("%v", diags)
 	}
-	if upd.BiddingStrategy != client.BiddingStrategyMaxConversions {
-		t.Fatalf("biddingStrategy = %q", upd.BiddingStrategy)
+	bs := upd.BidStrategy
+	if bs == nil || bs.BidStrategyType != client.BiddingStrategyMaxConversions {
+		t.Fatalf("bidStrategy = %#v", bs)
 	}
-	if upd.TargetCpa == nil || upd.TargetCpa.Amount != "12.00" || upd.TargetCpa.Currency != "USD" {
-		t.Fatalf("targetCpa = %#v", upd.TargetCpa)
+	if bs.Bid == nil || bs.Bid.Amount != "12.00" || bs.Bid.Currency != "USD" {
+		t.Fatalf("bidStrategy.bid = %#v", bs.Bid)
 	}
 }
 
@@ -268,66 +267,100 @@ func TestCampaignUpdateFromPlan_SwitchToManualCPT(t *testing.T) {
 	if diags.HasError() {
 		t.Fatalf("%v", diags)
 	}
-	if upd.BiddingStrategy != client.BiddingStrategyManualCPT {
-		t.Fatalf("biddingStrategy = %q", upd.BiddingStrategy)
+	if upd.BidStrategy == nil || upd.BidStrategy.BidStrategyType != client.BiddingStrategyManualCPT {
+		t.Fatalf("bidStrategy = %#v", upd.BidStrategy)
 	}
-	if upd.TargetCpa != nil {
-		t.Fatalf("targetCpa should be omitted for Manual, got %#v", upd.TargetCpa)
+	if upd.BidStrategy.Bid != nil {
+		t.Fatalf("bid should be omitted for Manual, got %#v", upd.BidStrategy.Bid)
+	}
+}
+
+func TestCampaignUpdateFromPlan_SharedBudgetsAndEndTime(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	orders, _ := types.ListValueFrom(ctx, types.StringType, []string{"31", "32"})
+	upd, diags := campaignUpdateFromPlan(ctx, campaignModel{
+		Name:         types.StringValue("Shared"),
+		BudgetOrders: orders,
+		EndTime:      types.StringValue("2026-12-31T00:00:00.000"),
+	})
+	if diags.HasError() {
+		t.Fatalf("%v", diags)
+	}
+	if len(upd.SharedBudgets) != 2 || upd.SharedBudgets[0].BudgetID != 31 || upd.SharedBudgets[1].BudgetID != 32 {
+		t.Fatalf("sharedBudgets = %#v", upd.SharedBudgets)
+	}
+	if upd.EndTime != "2026-12-31T00:00:00.000" {
+		t.Fatalf("endTime = %q", upd.EndTime)
 	}
 }
 
 func TestCampaignUpdate_MutableSucceeds(t *testing.T) {
 	t.Parallel()
 
-	var sawBody client.CampaignUpdate
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		var env struct {
-			Campaign client.CampaignUpdate `json:"campaign"`
+	var sawBody map[string]any
+	apiClient := newCampaignTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPut || r.URL.Path != "/campaigns/9" {
+			t.Errorf("unexpected %s %s", r.Method, r.URL.Path)
 		}
-		if err := json.NewDecoder(r.Body).Decode(&env); err != nil {
-			t.Fatal(err)
+		if err := json.NewDecoder(r.Body).Decode(&sawBody); err != nil {
+			t.Error(err)
 		}
-		sawBody = env.Campaign
 		_ = json.NewEncoder(w).Encode(map[string]any{
-			"data": map[string]any{
+			"result": map[string]any{
 				"id":                 9,
-				"name":               env.Campaign.Name,
-				"status":             env.Campaign.Status,
-				"adamId":             1,
-				"countriesOrRegions": []string{"US"},
-				"dailyBudgetAmount":  env.Campaign.DailyBudgetAmount,
-				"modificationTime":   "2026-04-01T00:00:00Z",
+				"name":               sawBody["name"],
+				"status":             sawBody["status"],
+				"promotedObjectId":   "1",
+				"promotedObjectType": "APPSTORE_APP",
+				"targeting": map[string]any{
+					"countryOrRegion": map[string]any{"include": []string{"US"}},
+				},
+				"dailyBudget":      sawBody["dailyBudget"],
+				"modificationTime": "2026-04-01T00:00:00Z",
 			},
 		})
-	}))
-	t.Cleanup(srv.Close)
+	})
 
-	apiClient, err := client.New(client.WithBaseURL(srv.URL))
+	ctx := context.Background()
+	upd, diags := campaignUpdateFromPlan(ctx, campaignModel{
+		Name:                types.StringValue("New"),
+		Status:              types.StringValue("PAUSED"),
+		DailyBudgetAmount:   types.StringValue("10.00"),
+		DailyBudgetCurrency: types.StringValue("USD"),
+		BudgetOrders:        types.ListNull(types.StringType),
+	})
+	if diags.HasError() {
+		t.Fatalf("%v", diags)
+	}
+	out, err := apiClient.UpdateCampaign(ctx, 9, upd)
 	if err != nil {
 		t.Fatal(err)
 	}
-	upd := &client.CampaignUpdate{
-		Name:              "New",
-		Status:            "PAUSED",
-		DailyBudgetAmount: &client.Money{Amount: "10.00", Currency: "USD"},
+	// v1 update body is bare (no "campaign" envelope).
+	if _, wrapped := sawBody["campaign"]; wrapped {
+		t.Fatalf("update body must not be wrapped: %#v", sawBody)
 	}
-	out, err := apiClient.UpdateCampaign(context.Background(), 9, upd)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if sawBody.Name != "New" || out.Name != "New" {
+	if sawBody["name"] != "New" || out.Name != "New" {
 		t.Fatalf("saw=%#v out=%#v", sawBody, out)
+	}
+	state, diags := campaignModelFromAPI(ctx, out)
+	if diags.HasError() {
+		t.Fatalf("%v", diags)
+	}
+	if state.DailyBudgetAmount.ValueString() != "10.00" {
+		t.Fatalf("daily = %q", state.DailyBudgetAmount.ValueString())
 	}
 }
 
 func TestCampaignUpdate_ImmutableBlocksWithoutAPICall(t *testing.T) {
 	t.Parallel()
 	called := false
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	_ = newCampaignTestClient(t, func(w http.ResponseWriter, r *http.Request) {
 		called = true
 		w.WriteHeader(http.StatusOK)
-	}))
-	t.Cleanup(srv.Close)
+	})
 
 	ctx := context.Background()
 	countriesA, _ := types.ListValueFrom(ctx, types.StringType, []string{"US"})
@@ -347,10 +380,11 @@ func TestCampaignUpdate_ImmutableBlocksWithoutAPICall(t *testing.T) {
 	if len(changes) == 0 {
 		t.Fatal("expected immutable change")
 	}
-	// Simulate Update early-return: no client call.
-	_ = srv
-	apiClient, _ := client.New(client.WithBaseURL(srv.URL))
-	_ = apiClient
+	diags := immutableCampaignChangeDiagnostics(state.ID.ValueString(), changes)
+	if !diags.HasError() || !strings.Contains(diags[0].Summary(), "countries_or_regions") {
+		t.Fatalf("diags = %v", diags)
+	}
+	// Update returns on immutable changes before any client call.
 	if called {
 		t.Fatal("API should not be called when immutable fields change")
 	}
