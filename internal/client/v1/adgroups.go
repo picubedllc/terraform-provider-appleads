@@ -98,7 +98,7 @@ func (c *Client) QueryAdGroups(ctx context.Context, q QueryRequest) (*PageResult
 
 func (c *Client) FindAdGroupByID(ctx context.Context, adGroupID int64) (*AdGroup, error) {
 	page, err := c.QueryAdGroups(ctx, QueryRequest{
-		Filters: []QueryFilter{EqualsFilter("id", adGroupID)},
+		Filters:    []QueryFilter{EqualsFilter("id", adGroupID)},
 		Pagination: &QueryPagination{Offset: 0, PageSize: 1},
 	})
 	if err != nil {
