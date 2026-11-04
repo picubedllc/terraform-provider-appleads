@@ -30,8 +30,8 @@ type ReportMetrics map[string]any
 
 // ReportRow is one reporting row with metadata + metrics.
 type ReportRow struct {
-	Metadata        map[string]any `json:"metadata,omitempty"`
-	TotalMetrics    ReportMetrics  `json:"totalMetrics,omitempty"`
+	Metadata        map[string]any  `json:"metadata,omitempty"`
+	TotalMetrics    ReportMetrics   `json:"totalMetrics,omitempty"`
 	GranularMetrics []ReportMetrics `json:"granularMetrics,omitempty"`
 }
 
