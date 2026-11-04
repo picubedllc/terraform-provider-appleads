@@ -7,34 +7,30 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
-	"net/http/httptest"
 	"testing"
 
-	"github.com/hashicorp/terraform-plugin-framework/types"
-
 	"github.com/picubedllc/terraform-provider-appleads/internal/client"
+	clientv1 "github.com/picubedllc/terraform-provider-appleads/internal/client/v1"
 )
 
 func TestCampaignRead_SoftDeletedRemovesFromState(t *testing.T) {
 	t.Parallel()
 
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	apiClient := newCampaignTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet || r.URL.Path != "/campaigns/7" {
+			t.Errorf("unexpected %s %s", r.Method, r.URL.Path)
+		}
 		_ = json.NewEncoder(w).Encode(map[string]any{
-			"data": map[string]any{
-				"id":      7,
-				"name":    "Gone",
-				"adamId":  1,
-				"deleted": true,
-				"status":  "ENABLED",
+			"result": map[string]any{
+				"id":                 7,
+				"name":               "Gone",
+				"promotedObjectId":   "1",
+				"promotedObjectType": "APPSTORE_APP",
+				"deleted":            true,
+				"status":             "ENABLED",
 			},
 		})
-	}))
-	t.Cleanup(srv.Close)
-
-	apiClient, err := client.New(client.WithBaseURL(srv.URL))
-	if err != nil {
-		t.Fatal(err)
-	}
+	})
 	got, err := apiClient.GetCampaign(context.Background(), 7)
 	if err != nil {
 		t.Fatal(err)
@@ -47,32 +43,29 @@ func TestCampaignRead_SoftDeletedRemovesFromState(t *testing.T) {
 func TestCampaignRead_DriftUpdatesModel(t *testing.T) {
 	t.Parallel()
 
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	apiClient := newCampaignTestClient(t, func(w http.ResponseWriter, r *http.Request) {
 		_ = json.NewEncoder(w).Encode(map[string]any{
-			"data": map[string]any{
+			"result": map[string]any{
 				"id":                 7,
 				"name":               "Renamed Externally",
-				"adamId":             1,
+				"promotedObjectId":   "1",
+				"promotedObjectType": "APPSTORE_APP",
 				"status":             "PAUSED",
 				"deleted":            false,
-				"countriesOrRegions": []string{"US"},
-				"servingStatus":      "NOT_RUNNING",
-				"displayStatus":      "PAUSED",
-				"modificationTime":   "2026-03-01T00:00:00Z",
+				"targeting": map[string]any{
+					"countryOrRegion": map[string]any{"include": []string{"US"}},
+				},
+				"systemStatus":     "NOT_RUNNING",
+				"displayStatus":    "PAUSED",
+				"modificationTime": "2026-03-01T00:00:00Z",
 			},
 		})
-	}))
-	t.Cleanup(srv.Close)
-
-	apiClient, err := client.New(client.WithBaseURL(srv.URL))
-	if err != nil {
-		t.Fatal(err)
-	}
+	})
 	got, err := apiClient.GetCampaign(context.Background(), 7)
 	if err != nil {
 		t.Fatal(err)
 	}
-	state, diags := campaignModelFromClient(context.Background(), got)
+	state, diags := campaignModelFromAPI(context.Background(), got)
 	if diags.HasError() {
 		t.Fatal(diags)
 	}
@@ -82,38 +75,35 @@ func TestCampaignRead_DriftUpdatesModel(t *testing.T) {
 	if state.Status.ValueString() != "PAUSED" {
 		t.Fatalf("status = %s", state.Status.ValueString())
 	}
+	if state.ServingStatus.ValueString() != "NOT_RUNNING" {
+		t.Fatalf("serving_status = %s", state.ServingStatus.ValueString())
+	}
 }
 
 func TestCampaignRead_NotFound404(t *testing.T) {
 	t.Parallel()
 
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	apiClient := newCampaignTestClient(t, func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
 		_ = json.NewEncoder(w).Encode(map[string]any{
-			"error": map[string]any{
-				"errors": []map[string]string{{"messageCode": "NOT_FOUND", "message": "campaign not found"}},
-			},
+			"error": map[string]any{"code": "NOT_FOUND", "message": "campaign not found"},
 		})
-	}))
-	t.Cleanup(srv.Close)
-
-	apiClient, err := client.New(client.WithBaseURL(srv.URL))
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, err = apiClient.GetCampaign(context.Background(), 404)
+	})
+	_, err := apiClient.GetCampaign(context.Background(), 404)
 	if !client.IsNotFound(err) {
 		t.Fatalf("err = %v", err)
 	}
 }
 
-func TestCampaignModelFromClient_PreservesID(t *testing.T) {
+func TestCampaignModelFromAPI_PreservesID(t *testing.T) {
 	t.Parallel()
-	m, diags := campaignModelFromClient(context.Background(), &client.Campaign{
-		ID:                 42,
-		Name:               "n",
-		AdamID:             1,
-		CountriesOrRegions: []string{"US"},
+	m, diags := campaignModelFromAPI(context.Background(), &clientv1.Campaign{
+		ID:               42,
+		Name:             "n",
+		PromotedObjectID: "1",
+		Targeting: &clientv1.CampaignTargeting{
+			CountryOrRegion: &clientv1.IncludeList{Include: []string{"US"}},
+		},
 	})
 	if diags.HasError() {
 		t.Fatal(diags)
@@ -124,5 +114,4 @@ func TestCampaignModelFromClient_PreservesID(t *testing.T) {
 	if !m.BudgetOrders.IsNull() {
 		t.Fatalf("budget_orders = %#v, want null", m.BudgetOrders)
 	}
-	_ = types.String{}
 }

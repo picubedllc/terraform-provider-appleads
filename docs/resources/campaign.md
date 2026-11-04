@@ -138,7 +138,7 @@ resource "appleads_campaign" "display" {
 - `ad_channel_type` (String) Ad channel type: `SEARCH` or `DISPLAY` (immutable). Defaults to `SEARCH` when omitted. Must match supply_sources and bidding_strategy (see resource docs matrix).
 - `bidding_strategy` (String) Bidding strategy (mutable): `MANUAL_CPT` or `MAX_CONVERSIONS`. Defaults to `MANUAL_CPT`. `MAX_CONVERSIONS` requires Search Results supply and `target_cpa_amount`.
 - `billing_event` (String) Billing event (immutable). Only `TAPS` is supported; defaults to `TAPS` when omitted.
-- `budget_amount` (String) Lifetime campaign budget amount as a decimal string (create-only). Changing this after create returns an error; create a new appleads_campaign instead. Never use floating point.
+- `budget_amount` (String) Lifetime campaign budget amount as a decimal string (create-only). Changing this after create returns an error; create a new appleads_campaign instead. Never use floating point. The Platform API has no lifetime budget field, so the value is kept in state but not sent to Apple Ads.
 - `budget_currency` (String) Currency code for budget_amount (e.g. USD; create-only with budget_amount). Changing this after create returns an error; create a new appleads_campaign instead.
 - `budget_orders` (List of String) Budget order identifiers associated with the campaign (mutable).
 - `daily_budget_amount` (String) Daily budget amount as a decimal string (mutable).

@@ -10,7 +10,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 
-	"github.com/picubedllc/terraform-provider-appleads/internal/client"
+	clientv1 "github.com/picubedllc/terraform-provider-appleads/internal/client/v1"
 )
 
 // immutableCampaignFieldChange describes a forbidden in-place change.
@@ -89,9 +89,9 @@ func listAttrSetEqual(ctx context.Context, a, b types.List) bool {
 	return stringSetEqual(as, bs)
 }
 
-func campaignUpdateFromPlan(ctx context.Context, plan campaignModel) (*client.CampaignUpdate, diag.Diagnostics) {
+func campaignUpdateFromPlan(ctx context.Context, plan campaignModel) (*clientv1.CampaignUpdate, diag.Diagnostics) {
 	var diags diag.Diagnostics
-	upd := &client.CampaignUpdate{}
+	upd := &clientv1.CampaignUpdate{}
 	if !plan.Name.IsNull() && !plan.Name.IsUnknown() {
 		upd.Name = plan.Name.ValueString()
 	}
@@ -101,16 +101,19 @@ func campaignUpdateFromPlan(ctx context.Context, plan campaignModel) (*client.Ca
 	// budget_amount / budget_currency are create-only; never send on update.
 	daily, d := moneyFromStrings(plan.DailyBudgetAmount, plan.DailyBudgetCurrency)
 	diags.Append(d...)
-	upd.DailyBudgetAmount = daily
+	if daily != nil {
+		upd.DailyBudget = &clientv1.MoneyValue{Value: daily}
+	}
 	targetCpa, d := moneyFromStrings(plan.TargetCpaAmount, plan.TargetCpaCurrency)
 	diags.Append(d...)
-	upd.TargetCpa = targetCpa
+	strategy := ""
+	if !plan.BiddingStrategy.IsNull() && !plan.BiddingStrategy.IsUnknown() {
+		strategy = plan.BiddingStrategy.ValueString()
+	}
+	upd.BidStrategy = bidStrategyFromPlan(strategy, targetCpa)
 	orders, d := int64ListFromStrings(ctx, plan.BudgetOrders)
 	diags.Append(d...)
-	upd.BudgetOrders = orders
-	if !plan.BiddingStrategy.IsNull() && !plan.BiddingStrategy.IsUnknown() && plan.BiddingStrategy.ValueString() != "" {
-		upd.BiddingStrategy = plan.BiddingStrategy.ValueString()
-	}
+	upd.SharedBudgets = sharedBudgetRefs(orders)
 	if !plan.EndTime.IsNull() && !plan.EndTime.IsUnknown() {
 		upd.EndTime = plan.EndTime.ValueString()
 	}

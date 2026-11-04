@@ -8,12 +8,14 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/shopspring/decimal"
 
 	"github.com/picubedllc/terraform-provider-appleads/internal/client"
+	clientv1 "github.com/picubedllc/terraform-provider-appleads/internal/client/v1"
 )
 
 func moneyFromStrings(amount, currency types.String) (*client.Money, diag.Diagnostics) {
@@ -61,15 +63,15 @@ func int64ListFromStrings(ctx context.Context, list types.List) ([]int64, diag.D
 	return out, diags
 }
 
-func campaignCreateFromPlan(ctx context.Context, plan campaignModel) (*client.CampaignCreate, diag.Diagnostics) {
+func campaignCreateFromPlan(ctx context.Context, plan campaignModel) (*clientv1.CampaignCreate, diag.Diagnostics) {
 	var diags diag.Diagnostics
 
 	if plan.Name.IsNull() || plan.Name.ValueString() == "" {
 		diags.AddError("Invalid campaign name", "name must be a non-empty string")
 		return nil, diags
 	}
-	adamID, err := strconv.ParseInt(plan.AdamID.ValueString(), 10, 64)
-	if err != nil {
+	adamID := strings.TrimSpace(plan.AdamID.ValueString())
+	if _, err := strconv.ParseInt(adamID, 10, 64); err != nil {
 		diags.AddError("Invalid adam_id", fmt.Sprintf("adam_id must be a numeric Adam ID; got %q", plan.AdamID.ValueString()))
 		return nil, diags
 	}
@@ -109,15 +111,21 @@ func campaignCreateFromPlan(ctx context.Context, plan campaignModel) (*client.Ca
 		return nil, diags
 	}
 
-	in := &client.CampaignCreate{
+	if budget != nil {
+		// The Platform API has no lifetime budget field. The value stays in
+		// Terraform state as create-only configuration but is not sent.
+		diags.AddWarning(
+			"budget_amount is not sent to the Platform API",
+			"The Apple Ads Platform API no longer supports a lifetime campaign budget. "+
+				"budget_amount is kept in Terraform state but is not applied to the campaign; "+
+				"use daily_budget_amount or budget_orders to cap spend.",
+		)
+	}
+
+	in := &clientv1.CampaignCreate{
 		Name:               plan.Name.ValueString(),
-		AdamID:             adamID,
-		CountriesOrRegions: countries,
-		BudgetAmount:       budget,
-		DailyBudgetAmount:  daily,
-		TargetCpa:          targetCpa,
-		SupplySources:      supply,
-		BudgetOrders:       orders,
+		PromotedObjectType: clientv1.PromotedObjectTypeAppStoreApp,
+		PromotedObjectID:   adamID,
 	}
 	if !plan.Status.IsNull() && !plan.Status.IsUnknown() && plan.Status.ValueString() != "" {
 		in.Status = plan.Status.ValueString()
@@ -130,19 +138,29 @@ func campaignCreateFromPlan(ctx context.Context, plan campaignModel) (*client.Ca
 	} else {
 		in.AdChannelType = client.AdChannelTypeSearch
 	}
-	if len(in.SupplySources) == 0 {
-		in.SupplySources = []string{client.SupplySourceSearchResults}
+	if len(supply) == 0 {
+		supply = []string{client.SupplySourceSearchResults}
 	}
 	if !plan.BillingEvent.IsNull() && !plan.BillingEvent.IsUnknown() && plan.BillingEvent.ValueString() != "" {
 		in.BillingEvent = plan.BillingEvent.ValueString()
 	} else {
 		in.BillingEvent = client.BillingEventTaps
 	}
+
+	bidding := client.BiddingStrategyManualCPT
 	if !plan.BiddingStrategy.IsNull() && !plan.BiddingStrategy.IsUnknown() && plan.BiddingStrategy.ValueString() != "" {
-		in.BiddingStrategy = plan.BiddingStrategy.ValueString()
-	} else {
-		in.BiddingStrategy = client.BiddingStrategyManualCPT
+		bidding = plan.BiddingStrategy.ValueString()
 	}
+	in.BidStrategy = bidStrategyFromPlan(bidding, targetCpa)
+
+	in.Targeting = &clientv1.CampaignTargeting{
+		CountryOrRegion: &clientv1.IncludeList{Include: countries},
+		SupplyPlacement: &clientv1.IncludeList{Include: supply},
+	}
+	if daily != nil {
+		in.DailyBudget = &clientv1.MoneyValue{Value: daily}
+	}
+	in.SharedBudgets = sharedBudgetRefs(orders)
 
 	if !plan.StartTime.IsNull() && !plan.StartTime.IsUnknown() && plan.StartTime.ValueString() != "" {
 		in.StartTime = plan.StartTime.ValueString()
@@ -153,20 +171,88 @@ func campaignCreateFromPlan(ctx context.Context, plan campaignModel) (*client.Ca
 	return in, diags
 }
 
-func campaignModelFromClient(ctx context.Context, c *client.Campaign) (campaignModel, diag.Diagnostics) {
+// bidStrategyFromPlan maps bidding_strategy / target_cpa_* to bidStrategy.
+// Returns nil when neither a strategy nor a target CPA is set.
+func bidStrategyFromPlan(strategy string, targetCpa *client.Money) *clientv1.BidStrategy {
+	if strategy == "" && targetCpa == nil {
+		return nil
+	}
+	return &clientv1.BidStrategy{BidStrategyType: strategy, Bid: targetCpa}
+}
+
+func sharedBudgetRefs(ids []int64) []clientv1.SharedBudgetRef {
+	if len(ids) == 0 {
+		return nil
+	}
+	out := make([]clientv1.SharedBudgetRef, 0, len(ids))
+	for _, id := range ids {
+		out = append(out, clientv1.SharedBudgetRef{BudgetID: id})
+	}
+	return out
+}
+
+func includeValues(l *clientv1.IncludeList) []string {
+	if l == nil {
+		return nil
+	}
+	return l.Include
+}
+
+// campaignModelFromAPI maps a Platform API v1 campaign to the Terraform model.
+func campaignModelFromAPI(ctx context.Context, c *clientv1.Campaign) (campaignModel, diag.Diagnostics) {
 	var diags diag.Diagnostics
 	var m campaignModel
 	m.ID = types.StringValue(strconv.FormatInt(c.ID, 10))
 	m.Name = types.StringValue(c.Name)
-	m.AdamID = types.StringValue(strconv.FormatInt(c.AdamID, 10))
 	m.Status = types.StringValue(c.Status)
-	m.AdChannelType = types.StringValue(c.AdChannelType)
-	m.BillingEvent = types.StringValue(c.BillingEvent)
-	m.BiddingStrategy = types.StringValue(c.BiddingStrategy)
+	m.BillingEvent = stringOrNull(c.BillingEvent)
 	m.PaymentModel = types.StringValue(c.PaymentModel)
-	m.ServingStatus = types.StringValue(c.ServingStatus)
+	m.ServingStatus = stringOrNull(c.SystemStatus)
 	m.DisplayStatus = types.StringValue(c.DisplayStatus)
 	m.ModificationTime = types.StringValue(c.ModificationTime)
+
+	m.AdamID = types.StringValue(c.PromotedObjectID)
+	switch c.PromotedObjectType {
+	case "", clientv1.PromotedObjectTypeAppStoreApp:
+	default:
+		diags.AddError(
+			"Unsupported promoted object type",
+			fmt.Sprintf("Campaign %d promotes a %q object; appleads_campaign only supports %s.", c.ID, c.PromotedObjectType, clientv1.PromotedObjectTypeAppStoreApp),
+		)
+	}
+
+	var countryList, supplyList []string
+	if c.Targeting != nil {
+		countryList = includeValues(c.Targeting.CountryOrRegion)
+		supplyList = includeValues(c.Targeting.SupplyPlacement)
+	}
+
+	m.AdChannelType = stringOrNull(c.AdChannelType)
+	if c.AdChannelType == "" && len(supplyList) > 0 {
+		m.AdChannelType = types.StringValue(client.AdChannelTypeDisplay)
+		for _, s := range supplyList {
+			if s == client.SupplySourceSearchResults {
+				m.AdChannelType = types.StringValue(client.AdChannelTypeSearch)
+				break
+			}
+		}
+	}
+
+	if c.BidStrategy != nil {
+		m.BiddingStrategy = stringOrNull(c.BidStrategy.BidStrategyType)
+		if c.BidStrategy.Bid != nil {
+			m.TargetCpaAmount = types.StringValue(c.BidStrategy.Bid.Amount)
+			m.TargetCpaCurrency = types.StringValue(c.BidStrategy.Bid.Currency)
+		} else {
+			m.TargetCpaAmount = types.StringNull()
+			m.TargetCpaCurrency = types.StringNull()
+		}
+	} else {
+		m.BiddingStrategy = types.StringNull()
+		m.TargetCpaAmount = types.StringNull()
+		m.TargetCpaCurrency = types.StringNull()
+	}
+
 	if c.StartTime != "" {
 		m.StartTime = types.StringValue(c.StartTime)
 	} else {
@@ -178,42 +264,32 @@ func campaignModelFromClient(ctx context.Context, c *client.Campaign) (campaignM
 		m.EndTime = types.StringNull()
 	}
 
-	countries, d := types.ListValueFrom(ctx, types.StringType, c.CountriesOrRegions)
+	countries, d := types.ListValueFrom(ctx, types.StringType, countryList)
 	diags.Append(d...)
 	m.CountriesOrRegions = countries
 
-	supply, d := types.ListValueFrom(ctx, types.StringType, c.SupplySources)
+	supply, d := types.ListValueFrom(ctx, types.StringType, supplyList)
 	diags.Append(d...)
 	m.SupplySources = supply
 
-	if c.BudgetAmount != nil {
-		m.BudgetAmount = types.StringValue(c.BudgetAmount.Amount)
-		m.BudgetCurrency = types.StringValue(c.BudgetAmount.Currency)
-	} else {
-		m.BudgetAmount = types.StringNull()
-		m.BudgetCurrency = types.StringNull()
-	}
-	if c.DailyBudgetAmount != nil {
-		m.DailyBudgetAmount = types.StringValue(c.DailyBudgetAmount.Amount)
-		m.DailyBudgetCurrency = types.StringValue(c.DailyBudgetAmount.Currency)
+	// Lifetime budget is not part of the Platform API.
+	m.BudgetAmount = types.StringNull()
+	m.BudgetCurrency = types.StringNull()
+
+	if c.DailyBudget != nil && c.DailyBudget.Value != nil {
+		m.DailyBudgetAmount = types.StringValue(c.DailyBudget.Value.Amount)
+		m.DailyBudgetCurrency = types.StringValue(c.DailyBudget.Value.Currency)
 	} else {
 		m.DailyBudgetAmount = types.StringNull()
 		m.DailyBudgetCurrency = types.StringNull()
 	}
-	if c.TargetCpa != nil {
-		m.TargetCpaAmount = types.StringValue(c.TargetCpa.Amount)
-		m.TargetCpaCurrency = types.StringValue(c.TargetCpa.Currency)
-	} else {
-		m.TargetCpaAmount = types.StringNull()
-		m.TargetCpaCurrency = types.StringNull()
-	}
 
-	if len(c.BudgetOrders) == 0 {
+	if len(c.SharedBudgets) == 0 {
 		m.BudgetOrders = types.ListNull(types.StringType)
 	} else {
-		orderStrs := make([]string, 0, len(c.BudgetOrders))
-		for _, id := range c.BudgetOrders {
-			orderStrs = append(orderStrs, strconv.FormatInt(id, 10))
+		orderStrs := make([]string, 0, len(c.SharedBudgets))
+		for _, ref := range c.SharedBudgets {
+			orderStrs = append(orderStrs, strconv.FormatInt(ref.BudgetID, 10))
 		}
 		orders, d := types.ListValueFrom(ctx, types.StringType, orderStrs)
 		diags.Append(d...)
@@ -227,9 +303,29 @@ func campaignModelFromClient(ctx context.Context, c *client.Campaign) (campaignM
 // start_time when Apple only reformats those values, so Create/Read/Update
 // do not fail Terraform's after-apply consistency check.
 func overlayCampaignReported(ctx context.Context, configured, reported campaignModel) (campaignModel, diag.Diagnostics) {
+	reported = overlayCampaignOmitted(configured, reported)
 	reported = overlayCampaignMoney(configured, reported)
 	reported = overlayCampaignStartTime(configured, reported)
 	return overlayCampaignLists(ctx, configured, reported)
+}
+
+// overlayCampaignOmitted keeps configured values for fields the Platform API
+// does not echo back: the create-only lifetime budget, and the channel,
+// billing, and bidding fields when a response omits them.
+func overlayCampaignOmitted(configured, reported campaignModel) campaignModel {
+	reported.BudgetAmount = keepConfiguredWhenOmitted(configured.BudgetAmount, reported.BudgetAmount)
+	reported.BudgetCurrency = keepConfiguredWhenOmitted(configured.BudgetCurrency, reported.BudgetCurrency)
+	reported.AdChannelType = keepConfiguredWhenOmitted(configured.AdChannelType, reported.AdChannelType)
+	reported.BillingEvent = keepConfiguredWhenOmitted(configured.BillingEvent, reported.BillingEvent)
+	reported.BiddingStrategy = keepConfiguredWhenOmitted(configured.BiddingStrategy, reported.BiddingStrategy)
+	return reported
+}
+
+func keepConfiguredWhenOmitted(configured, reported types.String) types.String {
+	if reported.IsNull() && !configured.IsNull() && !configured.IsUnknown() {
+		return configured
+	}
+	return reported
 }
 
 // overlayCampaignStartTime keeps the configured start_time string when the
@@ -305,7 +401,14 @@ func overlayCampaignLists(ctx context.Context, configured, reported campaignMode
 // preferConfiguredStringList returns the configured list when it is the same
 // set as the API response. Membership changes keep the reported values.
 func preferConfiguredStringList(ctx context.Context, configured, reported types.List) (types.List, diag.Diagnostics) {
-	if configured.IsNull() || configured.IsUnknown() || reported.IsNull() || reported.IsUnknown() {
+	if configured.IsNull() || configured.IsUnknown() {
+		return reported, nil
+	}
+	if reported.IsNull() {
+		// Platform API omitted the list; keep the configured value.
+		return configured, nil
+	}
+	if reported.IsUnknown() {
 		return reported, nil
 	}
 	cfg, d := stringList(ctx, configured)
