@@ -13,22 +13,26 @@ Manage Apple Ads configuration as code.
 
 ```terraform
 provider "appleads" {
-  org_id      = var.apple_ads_org_id
-  client_id   = var.apple_ads_client_id
-  team_id     = var.apple_ads_team_id
-  key_id      = var.apple_ads_key_id
-  private_key = file(var.apple_ads_private_key_path)
+  ad_account_id = var.apple_ads_ad_account_id
+  org_id        = var.apple_ads_org_id
+  client_id     = var.apple_ads_client_id
+  team_id       = var.apple_ads_team_id
+  key_id        = var.apple_ads_key_id
+  private_key   = file(var.apple_ads_private_key_path)
 
   # Default is false. Set true only when intentional campaign archival is required.
   allow_campaign_deletion = false
 }
 
 # Credentials may instead be supplied via APPLEADS_* environment variables:
+#   APPLEADS_AD_ACCOUNT_ID
 #   APPLEADS_ORG_ID
 #   APPLEADS_CLIENT_ID
 #   APPLEADS_TEAM_ID
 #   APPLEADS_KEY_ID
 #   APPLEADS_PRIVATE_KEY
+#
+# ad_account_id is required for Platform API v1 and is not interchangeable with org_id.
 #
 # provider "appleads" {}
 ```
@@ -38,9 +42,10 @@ provider "appleads" {
 
 ### Optional
 
+- `ad_account_id` (String) Apple Ads ad account ID for Platform API v1. Sent as `X-AP-Context: adAccountId=<ad_account_id>` on scoped calls. This is **not** the same value as `org_id`; do not substitute an organization ID. May also be set via `APPLEADS_AD_ACCOUNT_ID`.
 - `allow_campaign_deletion` (Boolean) When false (default), campaign destroy/archive operations are rejected. See the campaign deletion safety decision doc.
 - `client_id` (String) Apple Ads API client ID. May also be set via `APPLEADS_CLIENT_ID`.
 - `key_id` (String) Apple Ads API key ID. May also be set via `APPLEADS_KEY_ID`.
-- `org_id` (String) Apple Ads organization ID from GET /acls (`orgId`). Sent as `X-AP-Context: orgId=<org_id>` on org-scoped API calls. A truncated or wrong value fails campaign calls with FORBIDDEN. May also be set via `APPLEADS_ORG_ID`.
+- `org_id` (String) Apple Ads organization ID from GET /acls (`orgId`). Still used by transitional Campaign Management API v5 calls during the develop migration (`X-AP-Context: orgId=<org_id>`). May also be set via `APPLEADS_ORG_ID`. Prefer `ad_account_id` for Platform API v1.
 - `private_key` (String, Sensitive) PEM-encoded EC private key used to sign the OAuth client assertion. May also be set via `APPLEADS_PRIVATE_KEY`.
 - `team_id` (String) Apple Ads API team ID. May also be set via `APPLEADS_TEAM_ID`.

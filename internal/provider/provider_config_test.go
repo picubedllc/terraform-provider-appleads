@@ -35,7 +35,7 @@ func testECPrivateKeyPEM(t *testing.T) string {
 
 func clearAppleAdsEnv(t *testing.T) {
 	t.Helper()
-	for _, k := range []string{envOrgID, envClientID, envTeamID, envKeyID, envPrivateKey} {
+	for _, k := range []string{envOrgID, envAdAccountID, envClientID, envTeamID, envKeyID, envPrivateKey} {
 		t.Setenv(k, "")
 		_ = os.Unsetenv(k)
 	}
@@ -52,6 +52,7 @@ func TestConfigure_MissingCredentials(t *testing.T) {
 		Schema: schemaResp.Schema,
 		Raw: tftypes.NewValue(schemaResp.Schema.Type().TerraformType(context.Background()), map[string]tftypes.Value{
 			"org_id":                  tftypes.NewValue(tftypes.String, nil),
+			"ad_account_id":           tftypes.NewValue(tftypes.String, nil),
 			"client_id":               tftypes.NewValue(tftypes.String, nil),
 			"team_id":                 tftypes.NewValue(tftypes.String, nil),
 			"key_id":                  tftypes.NewValue(tftypes.String, nil),
@@ -81,6 +82,7 @@ func TestConfigure_EnvVarsUsedWhenConfigUnset(t *testing.T) {
 	clearAppleAdsEnv(t)
 	pemKey := testECPrivateKeyPEM(t)
 	t.Setenv(envOrgID, "org-env")
+	t.Setenv(envAdAccountID, "adacct-env")
 	t.Setenv(envClientID, "client-env")
 	t.Setenv(envTeamID, "team-env")
 	t.Setenv(envKeyID, "key-env")
@@ -94,6 +96,7 @@ func TestConfigure_EnvVarsUsedWhenConfigUnset(t *testing.T) {
 		Schema: schemaResp.Schema,
 		Raw: tftypes.NewValue(schemaResp.Schema.Type().TerraformType(context.Background()), map[string]tftypes.Value{
 			"org_id":                  tftypes.NewValue(tftypes.String, nil),
+			"ad_account_id":           tftypes.NewValue(tftypes.String, nil),
 			"client_id":               tftypes.NewValue(tftypes.String, nil),
 			"team_id":                 tftypes.NewValue(tftypes.String, nil),
 			"key_id":                  tftypes.NewValue(tftypes.String, nil),
@@ -108,8 +111,11 @@ func TestConfigure_EnvVarsUsedWhenConfigUnset(t *testing.T) {
 		t.Fatalf("unexpected diagnostics: %#v", resp.Diagnostics)
 	}
 	data, ok := resp.ResourceData.(*ProviderData)
-	if !ok || data == nil || data.Client == nil {
+	if !ok || data == nil || data.Client == nil || data.V1 == nil {
 		t.Fatalf("ResourceData = %#v", resp.ResourceData)
+	}
+	if data.AdAccountID != "adacct-env" {
+		t.Fatalf("AdAccountID = %q", data.AdAccountID)
 	}
 	if data.AllowCampaignDeletion {
 		t.Fatal("expected allow_campaign_deletion default false")
@@ -120,6 +126,7 @@ func TestConfigure_ConfigTakesPrecedenceOverEnv(t *testing.T) {
 	clearAppleAdsEnv(t)
 	pemKey := testECPrivateKeyPEM(t)
 	t.Setenv(envOrgID, "org-env")
+	t.Setenv(envAdAccountID, "adacct-env")
 	t.Setenv(envClientID, "client-env")
 	t.Setenv(envTeamID, "team-env")
 	t.Setenv(envKeyID, "key-env")
@@ -133,6 +140,7 @@ func TestConfigure_ConfigTakesPrecedenceOverEnv(t *testing.T) {
 		Schema: schemaResp.Schema,
 		Raw: tftypes.NewValue(schemaResp.Schema.Type().TerraformType(context.Background()), map[string]tftypes.Value{
 			"org_id":                  tftypes.NewValue(tftypes.String, "org-cfg"),
+			"ad_account_id":           tftypes.NewValue(tftypes.String, "adacct-cfg"),
 			"client_id":               tftypes.NewValue(tftypes.String, "client-cfg"),
 			"team_id":                 tftypes.NewValue(tftypes.String, "team-cfg"),
 			"key_id":                  tftypes.NewValue(tftypes.String, "key-cfg"),

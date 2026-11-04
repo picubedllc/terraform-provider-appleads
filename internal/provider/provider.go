@@ -17,14 +17,16 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/types"
 
 	"github.com/picubedllc/terraform-provider-appleads/internal/client"
+	clientv1 "github.com/picubedllc/terraform-provider-appleads/internal/client/v1"
 )
 
 const (
-	envOrgID      = "APPLEADS_ORG_ID"
-	envClientID   = "APPLEADS_CLIENT_ID"
-	envTeamID     = "APPLEADS_TEAM_ID"
-	envKeyID      = "APPLEADS_KEY_ID"
-	envPrivateKey = "APPLEADS_PRIVATE_KEY"
+	envOrgID       = "APPLEADS_ORG_ID"
+	envAdAccountID = "APPLEADS_AD_ACCOUNT_ID"
+	envClientID    = "APPLEADS_CLIENT_ID"
+	envTeamID      = "APPLEADS_TEAM_ID"
+	envKeyID       = "APPLEADS_KEY_ID"
+	envPrivateKey  = "APPLEADS_PRIVATE_KEY"
 )
 
 // Ensure AppleAdsProvider satisfies various provider interfaces.
@@ -41,6 +43,7 @@ type AppleAdsProvider struct {
 // appleAdsProviderModel describes the provider configuration schema.
 type appleAdsProviderModel struct {
 	OrgID                 types.String `tfsdk:"org_id"`
+	AdAccountID           types.String `tfsdk:"ad_account_id"`
 	ClientID              types.String `tfsdk:"client_id"`
 	TeamID                types.String `tfsdk:"team_id"`
 	KeyID                 types.String `tfsdk:"key_id"`
@@ -50,7 +53,12 @@ type appleAdsProviderModel struct {
 
 // ProviderData is passed to resources and data sources via Configure.
 type ProviderData struct {
-	Client                *client.Client
+	// Client is the Campaign Management API v5 client (transitional on develop).
+	Client *client.Client
+	// V1 is the Platform API v1 client. Prefer this for migrated resources.
+	V1 *clientv1.Client
+	// AdAccountID is the Platform API account context (never equal to org_id by assumption).
+	AdAccountID           string
 	AllowCampaignDeletion bool
 }
 
@@ -63,11 +71,17 @@ func (p *AppleAdsProvider) Schema(ctx context.Context, req provider.SchemaReques
 	resp.Schema = schema.Schema{
 		MarkdownDescription: "Manage Apple Ads configuration as code.",
 		Attributes: map[string]schema.Attribute{
+			"ad_account_id": schema.StringAttribute{
+				Optional: true,
+				MarkdownDescription: "Apple Ads ad account ID for Platform API v1. Sent as `X-AP-Context: adAccountId=<ad_account_id>` " +
+					"on scoped calls. This is **not** the same value as `org_id`; do not substitute an organization ID. " +
+					"May also be set via `APPLEADS_AD_ACCOUNT_ID`.",
+			},
 			"org_id": schema.StringAttribute{
 				Optional: true,
-				MarkdownDescription: "Apple Ads organization ID from GET /acls (`orgId`). Sent as `X-AP-Context: orgId=<org_id>` " +
-					"on org-scoped API calls. A truncated or wrong value fails campaign calls with FORBIDDEN. " +
-					"May also be set via `APPLEADS_ORG_ID`.",
+				MarkdownDescription: "Apple Ads organization ID from GET /acls (`orgId`). Still used by transitional Campaign Management API v5 " +
+					"calls during the develop migration (`X-AP-Context: orgId=<org_id>`). " +
+					"May also be set via `APPLEADS_ORG_ID`. Prefer `ad_account_id` for Platform API v1.",
 			},
 			"client_id": schema.StringAttribute{
 				Optional:            true,
@@ -102,11 +116,13 @@ func (p *AppleAdsProvider) Configure(ctx context.Context, req provider.Configure
 	}
 
 	orgID := stringValueOrEnv(config.OrgID, envOrgID)
+	adAccountID := stringValueOrEnv(config.AdAccountID, envAdAccountID)
 	clientID := stringValueOrEnv(config.ClientID, envClientID)
 	teamID := stringValueOrEnv(config.TeamID, envTeamID)
 	keyID := stringValueOrEnv(config.KeyID, envKeyID)
 	privateKey := stringValueOrEnv(config.PrivateKey, envPrivateKey)
 
+	resp.Diagnostics.Append(requireCredential("ad_account_id", adAccountID, envAdAccountID)...)
 	resp.Diagnostics.Append(requireCredential("org_id", orgID, envOrgID)...)
 	resp.Diagnostics.Append(requireCredential("client_id", clientID, envClientID)...)
 	resp.Diagnostics.Append(requireCredential("team_id", teamID, envTeamID)...)
@@ -114,6 +130,15 @@ func (p *AppleAdsProvider) Configure(ctx context.Context, req provider.Configure
 	resp.Diagnostics.Append(requireCredential("private_key", privateKey, envPrivateKey)...)
 	if resp.Diagnostics.HasError() {
 		return
+	}
+	if orgID != "" && adAccountID != "" && orgID == adAccountID {
+		resp.Diagnostics.AddAttributeWarning(
+			path.Root("ad_account_id"),
+			"org_id and ad_account_id are identical",
+			"Platform API ad account IDs are not the same as organization IDs. "+
+				"If this value was copied from org_id, authentication may succeed while scoped calls fail. "+
+				"Resolve the ad account ID via Platform API ad-account / ACL discovery.",
+		)
 	}
 
 	allowDeletion := false
@@ -127,7 +152,7 @@ func (p *AppleAdsProvider) Configure(ctx context.Context, req provider.Configure
 		TeamID:     teamID,
 		KeyID:      keyID,
 		PrivateKey: privateKey,
-	}, allowDeletion)
+	}, adAccountID, allowDeletion)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -137,7 +162,7 @@ func (p *AppleAdsProvider) Configure(ctx context.Context, req provider.Configure
 	resp.ResourceData = data
 }
 
-func buildProviderData(creds client.Credentials, allowDeletion bool) (*ProviderData, diag.Diagnostics) {
+func buildProviderData(creds client.Credentials, adAccountID string, allowDeletion bool) (*ProviderData, diag.Diagnostics) {
 	var diags diag.Diagnostics
 
 	tokens, err := client.NewOAuthTokenSource(client.OAuthConfig{Credentials: creds})
@@ -146,21 +171,36 @@ func buildProviderData(creds client.Credentials, allowDeletion bool) (*ProviderD
 		return nil, diags
 	}
 
-	httpClient := client.NewAuthenticatedHTTPClient(tokens, creds.OrgID, nil)
-	httpClient = client.WithRetry(httpClient, client.RetryConfig{})
+	ua := fmt.Sprintf("terraform-provider-appleads/%s", "dev")
 
+	v5HTTP := client.NewAuthenticatedHTTPClient(tokens, creds.OrgID, nil)
+	v5HTTP = client.WithRetry(v5HTTP, client.RetryConfig{})
 	apiClient, err := client.New(
-		client.WithHTTPClient(httpClient),
+		client.WithHTTPClient(v5HTTP),
 		client.WithOrgID(creds.OrgID),
-		client.WithUserAgent(fmt.Sprintf("terraform-provider-appleads/%s", "dev")),
+		client.WithUserAgent(ua),
 	)
 	if err != nil {
 		diags.AddError("Unable to configure Apple Ads client", err.Error())
 		return nil, diags
 	}
 
+	v1HTTP := clientv1.NewAuthenticatedHTTPClient(tokens, adAccountID, nil)
+	v1HTTP = client.WithRetry(v1HTTP, client.RetryConfig{})
+	v1Client, err := clientv1.New(
+		clientv1.WithHTTPClient(v1HTTP),
+		clientv1.WithAdAccountID(adAccountID),
+		clientv1.WithUserAgent(ua),
+	)
+	if err != nil {
+		diags.AddError("Unable to configure Apple Ads Platform API client", err.Error())
+		return nil, diags
+	}
+
 	return &ProviderData{
 		Client:                apiClient,
+		V1:                    v1Client,
+		AdAccountID:           adAccountID,
 		AllowCampaignDeletion: allowDeletion,
 	}, diags
 }
