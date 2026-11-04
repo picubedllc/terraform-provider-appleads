@@ -8,11 +8,11 @@ import (
 
 // BidSuggestion is a Platform API keyword bid suggestion.
 type BidSuggestion struct {
-	KeywordID   int64  `json:"keywordId,omitempty"`
-	Text        string `json:"text,omitempty"`
+	KeywordID    int64  `json:"keywordId,omitempty"`
+	Text         string `json:"text,omitempty"`
 	SuggestedBid *Money `json:"suggestedBid,omitempty"`
-	BidFloor    *Money `json:"bidFloor,omitempty"`
-	BidCeiling  *Money `json:"bidCeiling,omitempty"`
+	BidFloor     *Money `json:"bidFloor,omitempty"`
+	BidCeiling   *Money `json:"bidCeiling,omitempty"`
 }
 
 // QueryBidSuggestions runs the suggestions/recommendations query surface.
