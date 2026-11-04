@@ -17,16 +17,16 @@ type CreativeDestination struct {
 
 // Creative is a Platform API v1 creative.
 type Creative struct {
-	ID               int64                `json:"id,omitempty"`
-	AdAccountID      int64                `json:"adAccountId,omitempty"`
-	Name             string               `json:"name,omitempty"`
-	CreativeType     string               `json:"creativeType,omitempty"`
-	Destination      *CreativeDestination `json:"destination,omitempty"`
-	SystemStatus     string               `json:"systemStatus,omitempty"`
-	SystemStatusReasons []string          `json:"systemStatusReasons,omitempty"`
-	CreationTime     string               `json:"creationTime,omitempty"`
-	ModificationTime string               `json:"modificationTime,omitempty"`
-	Deleted          bool                 `json:"deleted,omitempty"`
+	ID                  int64                `json:"id,omitempty"`
+	AdAccountID         int64                `json:"adAccountId,omitempty"`
+	Name                string               `json:"name,omitempty"`
+	CreativeType        string               `json:"creativeType,omitempty"`
+	Destination         *CreativeDestination `json:"destination,omitempty"`
+	SystemStatus        string               `json:"systemStatus,omitempty"`
+	SystemStatusReasons []string             `json:"systemStatusReasons,omitempty"`
+	CreationTime        string               `json:"creationTime,omitempty"`
+	ModificationTime    string               `json:"modificationTime,omitempty"`
+	Deleted             bool                 `json:"deleted,omitempty"`
 }
 
 type CreativeCreate struct {
