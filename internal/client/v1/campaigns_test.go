@@ -70,13 +70,37 @@ func TestCreateCampaign_AdAccountIDInBody(t *testing.T) {
 	if got["promotedObjectType"] != "APPSTORE_APP" || got["promotedObjectId"] != "123456" {
 		t.Fatalf("promoted object in body = %#v", got)
 	}
-	budget := got["dailyBudget"].(map[string]any)["value"].(map[string]any)
+	dailyBudget, ok := got["dailyBudget"].(map[string]any)
+	if !ok {
+		t.Fatalf("dailyBudget = %#v", got["dailyBudget"])
+	}
+	budget, ok := dailyBudget["value"].(map[string]any)
+	if !ok {
+		t.Fatalf("dailyBudget.value = %#v", dailyBudget["value"])
+	}
 	if budget["amount"] != "10.00" || budget["currency"] != "USD" {
 		t.Fatalf("dailyBudget money must be a decimal string: %#v", budget)
 	}
-	tgt := got["targeting"].(map[string]any)
-	cor := tgt["countryOrRegion"].(map[string]any)["include"].([]any)
-	sp := tgt["supplyPlacement"].(map[string]any)["include"].([]any)
+	tgt, ok := got["targeting"].(map[string]any)
+	if !ok {
+		t.Fatalf("targeting = %#v", got["targeting"])
+	}
+	countryOrRegion, ok := tgt["countryOrRegion"].(map[string]any)
+	if !ok {
+		t.Fatalf("countryOrRegion = %#v", tgt["countryOrRegion"])
+	}
+	cor, ok := countryOrRegion["include"].([]any)
+	if !ok {
+		t.Fatalf("countryOrRegion.include = %#v", countryOrRegion["include"])
+	}
+	supplyPlacement, ok := tgt["supplyPlacement"].(map[string]any)
+	if !ok {
+		t.Fatalf("supplyPlacement = %#v", tgt["supplyPlacement"])
+	}
+	sp, ok := supplyPlacement["include"].([]any)
+	if !ok {
+		t.Fatalf("supplyPlacement.include = %#v", supplyPlacement["include"])
+	}
 	if len(cor) != 2 || len(sp) != 1 {
 		t.Fatalf("targeting = %#v", tgt)
 	}
@@ -104,7 +128,7 @@ func TestCreateCampaign_ExplicitAdAccountIDOverridesClient(t *testing.T) {
 	if _, err := c.CreateCampaign(context.Background(), &v1.CampaignCreate{AdAccountID: 9, Name: "x", PromotedObjectID: "1", PromotedObjectType: v1.PromotedObjectTypeAppStoreApp}); err != nil {
 		t.Fatal(err)
 	}
-	if got["adAccountId"].(float64) != 9 {
+	if v, ok := got["adAccountId"].(float64); !ok || v != 9 {
 		t.Fatalf("adAccountId = %v", got["adAccountId"])
 	}
 }
@@ -221,8 +245,15 @@ func TestQueryCampaigns(t *testing.T) {
 	if len(page.Data) != 2 || page.Data[1].ID != 2 || page.TotalCount != 2 || page.PageSize != 50 {
 		t.Fatalf("page = %#v", page)
 	}
-	filters := got["filters"].([]any)
-	if len(filters) != 1 || filters[0].(map[string]any)["field"] != "adAccountId" {
+	filters, ok := got["filters"].([]any)
+	if !ok {
+		t.Fatalf("filters = %#v", got["filters"])
+	}
+	if len(filters) != 1 {
+		t.Fatalf("filters = %#v", got["filters"])
+	}
+	filter, ok := filters[0].(map[string]any)
+	if !ok || filter["field"] != "adAccountId" {
 		t.Fatalf("filters = %#v", got["filters"])
 	}
 }
