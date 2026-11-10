@@ -7,27 +7,18 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
-	"net/http/httptest"
 	"strings"
 	"testing"
-
-	"github.com/picubedllc/terraform-provider-appleads/internal/client"
 )
 
 func TestCampaignDelete_BlockedWithoutOptIn(t *testing.T) {
 	t.Parallel()
 
 	called := false
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	apiClient := newCampaignTestClient(t, func(w http.ResponseWriter, r *http.Request) {
 		called = true
 		w.WriteHeader(http.StatusNoContent)
-	}))
-	t.Cleanup(srv.Close)
-
-	apiClient, err := client.New(client.WithBaseURL(srv.URL))
-	if err != nil {
-		t.Fatal(err)
-	}
+	})
 
 	r := &campaignResource{client: apiClient, allowCampaignDeletion: false}
 	if r.allowCampaignDeletion {
@@ -44,7 +35,6 @@ func TestCampaignDelete_BlockedWithoutOptIn(t *testing.T) {
 		t.Fatalf("detail = %s", diags[0].Detail())
 	}
 	// Guardrail must short-circuit before any client call.
-	_ = r
 	if called {
 		t.Fatal("API must not be called")
 	}
@@ -54,20 +44,13 @@ func TestCampaignDelete_AllowedArchives(t *testing.T) {
 	t.Parallel()
 
 	called := false
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	apiClient := newCampaignTestClient(t, func(w http.ResponseWriter, r *http.Request) {
 		called = true
-		if r.Method != http.MethodDelete || !strings.HasSuffix(r.URL.Path, "/campaigns/99") {
-			t.Fatalf("%s %s", r.Method, r.URL.Path)
+		if r.Method != http.MethodDelete || r.URL.Path != "/campaigns/99" {
+			t.Errorf("%s %s", r.Method, r.URL.Path)
 		}
-		w.WriteHeader(http.StatusOK)
-		_ = json.NewEncoder(w).Encode(map[string]any{"data": nil})
-	}))
-	t.Cleanup(srv.Close)
-
-	apiClient, err := client.New(client.WithBaseURL(srv.URL))
-	if err != nil {
-		t.Fatal(err)
-	}
+		w.WriteHeader(http.StatusNoContent)
+	})
 	if err := apiClient.DeleteCampaign(context.Background(), 99); err != nil {
 		t.Fatal(err)
 	}
@@ -79,19 +62,13 @@ func TestCampaignDelete_AllowedArchives(t *testing.T) {
 func TestCampaignDelete_APIFailure(t *testing.T) {
 	t.Parallel()
 
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	apiClient := newCampaignTestClient(t, func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusConflict)
 		_ = json.NewEncoder(w).Encode(map[string]any{
-			"error": map[string]any{"errors": []map[string]string{{"messageCode": "DENIED", "message": "cannot archive"}}},
+			"error": map[string]any{"code": "DENIED", "message": "cannot archive"},
 		})
-	}))
-	t.Cleanup(srv.Close)
-
-	apiClient, err := client.New(client.WithBaseURL(srv.URL))
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = apiClient.DeleteCampaign(context.Background(), 99)
+	})
+	err := apiClient.DeleteCampaign(context.Background(), 99)
 	if err == nil {
 		t.Fatal("expected error")
 	}

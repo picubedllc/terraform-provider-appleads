@@ -19,6 +19,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/types"
 
 	"github.com/picubedllc/terraform-provider-appleads/internal/client"
+	clientv1 "github.com/picubedllc/terraform-provider-appleads/internal/client/v1"
 )
 
 // moneyAmountRegexp validates decimal money strings without float conversion.
@@ -35,13 +36,13 @@ func NewCampaignResource() resource.Resource {
 }
 
 type campaignResource struct {
-	client                *client.Client
+	client                *clientv1.Client
 	allowCampaignDeletion bool
 }
 
 // campaignModel is the Terraform state/plan model for appleads_campaign.
 //
-// Field mutability (must stay in sync with client.Campaign comments):
+// Field mutability (must stay in sync with clientv1.Campaign fields):
 //
 // Immutable / create-only — never use RequiresReplace; Update returns a diagnostic instead:
 //   - adam_id
@@ -151,7 +152,8 @@ func (r *campaignResource) Schema(ctx context.Context, req resource.SchemaReques
 			"budget_amount": schema.StringAttribute{
 				Optional: true,
 				MarkdownDescription: "Lifetime campaign budget amount as a decimal string (create-only). " +
-					"Changing this after create returns an error; create a new appleads_campaign instead. Never use floating point.",
+					"Changing this after create returns an error; create a new appleads_campaign instead. Never use floating point. " +
+					"The Platform API has no lifetime budget field, so the value is kept in state but not sent to Apple Ads.",
 				Validators: []validator.String{
 					stringvalidator.RegexMatches(moneyAmountRegexp, "budget_amount must be a positive decimal string (e.g. \"100.00\")"),
 				},
@@ -282,7 +284,7 @@ func (r *campaignResource) Configure(ctx context.Context, req resource.Configure
 		)
 		return
 	}
-	r.client = data.Client
+	r.client = data.V1
 	r.allowCampaignDeletion = data.AllowCampaignDeletion
 }
 
@@ -312,7 +314,7 @@ func (r *campaignResource) Create(ctx context.Context, req resource.CreateReques
 	// Populate state from the Apple response, keeping configured money strings
 	// and list order when Apple only reformats those values ("5.00" → "5",
 	// or countries returned in a different order).
-	state, diags := campaignModelFromClient(ctx, created)
+	state, diags := campaignModelFromAPI(ctx, created)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -336,7 +338,7 @@ func (r *campaignResource) Read(ctx context.Context, req resource.ReadRequest, r
 		return
 	}
 
-	id, err := client.ParseCampaignID(state.ID.ValueString())
+	id, err := clientv1.ParseCampaignID(state.ID.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError("Invalid campaign id in state", err.Error())
 		return
@@ -364,7 +366,7 @@ func (r *campaignResource) Read(ctx context.Context, req resource.ReadRequest, r
 		return
 	}
 
-	newState, diags := campaignModelFromClient(ctx, got)
+	newState, diags := campaignModelFromAPI(ctx, got)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -397,7 +399,7 @@ func (r *campaignResource) Update(ctx context.Context, req resource.UpdateReques
 		return
 	}
 
-	id, err := client.ParseCampaignID(state.ID.ValueString())
+	id, err := clientv1.ParseCampaignID(state.ID.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError("Invalid campaign id in state", err.Error())
 		return
@@ -415,7 +417,7 @@ func (r *campaignResource) Update(ctx context.Context, req resource.UpdateReques
 		return
 	}
 
-	newState, diags := campaignModelFromClient(ctx, updated)
+	newState, diags := campaignModelFromAPI(ctx, updated)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -445,7 +447,7 @@ func (r *campaignResource) Delete(ctx context.Context, req resource.DeleteReques
 		return
 	}
 
-	id, err := client.ParseCampaignID(state.ID.ValueString())
+	id, err := clientv1.ParseCampaignID(state.ID.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError("Invalid campaign id in state", err.Error())
 		return
@@ -465,7 +467,7 @@ func (r *campaignResource) ImportState(ctx context.Context, req resource.ImportS
 		return
 	}
 
-	id, err := client.ParseCampaignID(req.ID)
+	id, err := clientv1.ParseCampaignID(req.ID)
 	if err != nil {
 		resp.Diagnostics.AddError("Invalid import id", "Expected a numeric Apple Ads campaign id.")
 		return
@@ -488,7 +490,7 @@ func (r *campaignResource) ImportState(ctx context.Context, req resource.ImportS
 		return
 	}
 
-	state, diags := campaignModelFromClient(ctx, got)
+	state, diags := campaignModelFromAPI(ctx, got)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
