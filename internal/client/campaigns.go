@@ -35,7 +35,6 @@ const (
 //
 //	Immutable / create-only (cannot change in place; Terraform must NOT RequiresReplace):
 //	  - AdamID
-//	  - CountriesOrRegions
 //	  - SupplySources
 //	  - AdChannelType
 //	  - BillingEvent (tied to channel/supply at create)
@@ -47,6 +46,9 @@ const (
 //	  - DailyBudgetAmount
 //	  - BudgetOrders
 //	  - EndTime
+//	  - CountriesOrRegions (PUT /campaigns/{id} with
+//	    clearGeoTargetingOnCountryOrRegionChange=true; this clears ad-group
+//	    geo targeting on the campaign)
 //	  - BiddingStrategy
 //	  - TargetCpa (required when BiddingStrategy is MAX_CONVERSIONS)
 //
@@ -104,25 +106,30 @@ type CampaignCreate struct {
 }
 
 // CampaignUpdate is the mutable subset for PUT /campaigns/{id}.
-// Wrapped as {"campaign": {...}} by UpdateCampaign.
+// Wrapped as {"campaign": {...}} by UpdateCampaign. When CountriesOrRegions
+// membership changes, set ClearGeoTargetingOnCountryOrRegionChange so the
+// envelope includes Apple's required flag (see Update a Campaign).
 //
 // BudgetAmount is intentionally absent: Apple documents lifetime budget as
 // create-only. Terraform never sends budgetAmount on update. Live probes that
 // still need to exercise a rejected update may POST a raw JSON body.
 type CampaignUpdate struct {
-	Name              string  `json:"name,omitempty"`
-	Status            string  `json:"status,omitempty"`
-	DailyBudgetAmount *Money  `json:"dailyBudgetAmount,omitempty"`
-	BudgetOrders      []int64 `json:"budgetOrders,omitempty"`
-	BiddingStrategy   string  `json:"biddingStrategy,omitempty"`
-	TargetCpa         *Money  `json:"targetCpa,omitempty"`
-	StartTime         string  `json:"startTime,omitempty"`
-	EndTime           string  `json:"endTime,omitempty"`
-	ClearEndTime      bool    `json:"-"` // sentinel handled by marshal helper when needed
+	Name                                     string   `json:"name,omitempty"`
+	Status                                   string   `json:"status,omitempty"`
+	DailyBudgetAmount                        *Money   `json:"dailyBudgetAmount,omitempty"`
+	BudgetOrders                             []int64  `json:"budgetOrders,omitempty"`
+	BiddingStrategy                          string   `json:"biddingStrategy,omitempty"`
+	TargetCpa                                *Money   `json:"targetCpa,omitempty"`
+	StartTime                                string   `json:"startTime,omitempty"`
+	EndTime                                  string   `json:"endTime,omitempty"`
+	CountriesOrRegions                       []string `json:"countriesOrRegions,omitempty"`
+	ClearEndTime                             bool     `json:"-"` // sentinel handled by marshal helper when needed
+	ClearGeoTargetingOnCountryOrRegionChange bool     `json:"-"`
 }
 
 type campaignUpdateEnvelope struct {
-	Campaign *CampaignUpdate `json:"campaign"`
+	ClearGeoTargetingOnCountryOrRegionChange bool            `json:"clearGeoTargetingOnCountryOrRegionChange,omitempty"`
+	Campaign                                 *CampaignUpdate `json:"campaign"`
 }
 
 // Referenced so the schema-stage package stays unused-clean until Update uses it.
